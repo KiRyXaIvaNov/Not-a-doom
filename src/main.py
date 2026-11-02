@@ -14,6 +14,7 @@ from src.map import Map
 from src.player import Player
 from src.textures import TextureManager
 from src.raycasting import RayCasting
+from src.sprite_object import SpriteManager
 from src.renderer import Renderer
 from src.weapon import Weapon
 
@@ -44,6 +45,7 @@ class Game:
         self.player = Player(self)
         self.textures = TextureManager()
         self.raycasting = RayCasting(self)
+        self.sprite_manager = SpriteManager(self)
         self.weapon = Weapon(self)
         self.renderer = Renderer(self)
 
@@ -54,7 +56,6 @@ class Game:
             self.raycasting.update()
             self.weapon.update()
 
-        # Display current FPS in title
         fps = int(self.clock.get_fps())
         status = "PLAYING" if self.mouse_grabbed else "PAUSED (Click or press ESC to resume, Q to quit)"
         pygame.display.set_caption(f"Not-a-Doom | {status} | FPS: {fps}")
@@ -74,16 +75,13 @@ class Game:
                 elif not self.mouse_grabbed and event.key == pygame.K_q:
                     self.running = False
                 elif self.mouse_grabbed and (event.key == pygame.K_SPACE or event.key == pygame.K_LCTRL):
-                    # Fire weapon with Space or Left Ctrl
                     self.weapon.fire()
             elif event.type == pygame.KEYUP:
                 self.pressed_scancodes.discard(event.scancode)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.mouse_grabbed and event.button == 1:
-                    # Click to resume game
                     self.grab_mouse(True)
                 elif self.mouse_grabbed and event.button == 1:
-                    # Left click to fire shotgun
                     self.weapon.fire()
 
     def run(self):
