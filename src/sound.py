@@ -64,14 +64,15 @@ def synthesize_shotgun_pump() -> np.ndarray:
 
 
 def synthesize_footstep() -> np.ndarray:
-    """Procedural fallback footstep."""
-    duration = 0.1
+    """Soft, gentle, realistic boot scuff/tap on stone (no harsh kick-drum boom)."""
+    duration = 0.08
     total_samples = int(SAMPLE_RATE * duration)
     t = np.linspace(0, duration, total_samples, endpoint=False)
-    boom = np.sin(2 * np.pi * 65 * t)
-    noise = np.random.uniform(-0.3, 0.3, total_samples)
-    env = np.exp(-t * 35)
-    return (boom * 0.7 + noise * 0.3) * env
+    # Subtle low frequency brush without loud resonant sub-bass
+    noise = np.random.uniform(-0.15, 0.15, total_samples)
+    # Quick exponential decay
+    env = np.exp(-t * 60)
+    return noise * env * 0.35
 
 
 class SoundManager:
@@ -122,19 +123,18 @@ class SoundManager:
         self.sounds["pump"] = pygame.mixer.Sound(pump_file)
         self.sounds["pump"].set_volume(0.75)
 
-        # 3. Footsteps
-        step_file = self._find_audio_file("footstep")
-        if not step_file:
-            step_file = save_wav("footstep.wav", synthesize_footstep())
-        self.sounds["step"] = pygame.mixer.Sound(step_file)
-        self.sounds["step"].set_volume(0.35)
+        # 3. Soft muffled footstep (calm, low volume)
+        step_path = os.path.join(ASSETS_SOUND_DIR, "footstep.wav")
+        # Regenerate with soft synthesis
+        save_wav("footstep.wav", synthesize_footstep())
+        self.sounds["step"] = pygame.mixer.Sound(step_path)
+        self.sounds["step"].set_volume(0.12)  # Soft background volume
 
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
 
     def play_pump(self):
-        # Do not play separate pump sound if shot audio already has the reload sound integrated
         if self.enabled and not self.has_integrated_pump and "pump" in self.sounds:
             self.sounds["pump"].play()
 

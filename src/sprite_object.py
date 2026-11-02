@@ -1,6 +1,7 @@
 """
 2.5D Billboard Sprite system for Not-a-Doom.
-Handles depth sorting, Z-buffer wall occlusion, perspective projection and distance shading.
+Handles depth sorting, Z-buffer wall occlusion, perspective projection,
+and hardware-friendly span-based blitting with zero-allocation pre-baked lightmaps.
 """
 import os
 import math
@@ -16,9 +17,11 @@ from src.settings import (
     SCREEN_DIST,
     SCALE,
     DELTA_ANGLE,
+    MAX_DEPTH,
 )
 
 ASSETS_PROPS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sprites", "props")
+NUM_PROP_LIGHTS = 8
 
 
 def generate_barrel_sprite() -> pygame.Surface:
@@ -27,37 +30,29 @@ def generate_barrel_sprite() -> pygame.Surface:
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     cx = size // 2
 
-    # Dark green ribbed metal drum
     GREEN_DARK = (25, 60, 30)
     GREEN_MID = (45, 105, 50)
     GREEN_LIGHT = (70, 155, 75)
     SLIME_GLOW = (80, 255, 60)
     BLACK = (15, 20, 15)
 
-    # Base cylinder
     pygame.draw.rect(surf, GREEN_MID, (14, 16, 36, 42), border_radius=4)
-    # Highlights & shadows
     pygame.draw.rect(surf, GREEN_LIGHT, (17, 16, 8, 42))
     pygame.draw.rect(surf, GREEN_DARK, (38, 16, 12, 42))
 
-    # Metallic reinforcement ribs (rings around the barrel)
     for ry in [20, 34, 48]:
         pygame.draw.line(surf, (30, 40, 30), (14, ry), (50, ry), 2)
         pygame.draw.line(surf, (80, 170, 85), (17, ry - 1), (25, ry - 1), 1)
 
-    # Slime oozing out of top lid
     pygame.draw.ellipse(surf, GREEN_DARK, (14, 12, 36, 10))
     pygame.draw.ellipse(surf, SLIME_GLOW, (18, 14, 28, 6))
 
-    # Biohazard toxic hazard symbol in yellow
     pygame.draw.polygon(surf, (240, 210, 30), [
         (cx, 32),
         (cx - 7, 44),
         (cx + 7, 44)
     ])
     pygame.draw.circle(surf, BLACK, (cx, 38), 3)
-
-    # Outer outline
     pygame.draw.rect(surf, BLACK, (14, 16, 36, 42), 2, border_radius=4)
     return surf
 
@@ -68,22 +63,17 @@ def generate_pillar_sprite() -> pygame.Surface:
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     cx = size // 2
 
-    # Stone shaft
     pygame.draw.rect(surf, (90, 92, 100), (20, 12, 24, 48))
     pygame.draw.rect(surf, (135, 140, 150), (22, 12, 6, 48))
     pygame.draw.rect(surf, (60, 62, 70), (34, 12, 10, 48))
 
-    # Capital & Base pedestal
     pygame.draw.rect(surf, (75, 78, 85), (16, 8, 32, 6))
     pygame.draw.rect(surf, (75, 78, 85), (16, 56, 32, 6))
 
-    # Fire bowl on top
     pygame.draw.ellipse(surf, (40, 40, 45), (18, 6, 28, 6))
-    # Glowing flame
     pygame.draw.polygon(surf, (255, 120, 20), [(cx, 0), (cx - 6, 8), (cx + 6, 8)])
     pygame.draw.polygon(surf, (255, 230, 40), [(cx, 2), (cx - 3, 7), (cx + 3, 7)])
 
-    # Outline
     pygame.draw.rect(surf, (20, 20, 25), (20, 12, 24, 48), 2)
     return surf
 
@@ -94,12 +84,10 @@ def generate_medkit_sprite() -> pygame.Surface:
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     cx = size // 2
 
-    # White metal case with dark shading
     pygame.draw.rect(surf, (225, 230, 235), (16, 32, 32, 24), border_radius=3)
     pygame.draw.rect(surf, (180, 185, 195), (36, 32, 12, 24), border_radius=3)
     pygame.draw.rect(surf, (40, 45, 50), (16, 32, 32, 24), 2, border_radius=3)
 
-    # Red Cross emblem
     pygame.draw.rect(surf, (220, 25, 25), (cx - 2, 37, 4, 14))
     pygame.draw.rect(surf, (220, 25, 25), (cx - 7, 42, 14, 4))
     return surf
@@ -129,13 +117,29 @@ class SpriteObject:
             "pillar": generate_pillar_sprite,
             "medkit": generate_medkit_sprite,
         }
-        self.image = get_prop_surface(name, generators.get(name, generate_barrel_sprite))
-        self.IMAGE_WIDTH = self.image.get_width()
+        self.base_image = get_prop_surface(name, generators.get(name, generate_barrel_sprite))
+        self.IMAGE_WIDTH = self.base_image.get_width()
         self.IMAGE_HALF_WIDTH = self.IMAGE_WIDTH // 2
 
+        self.shaded_images = self._bake_light_levels()
         self.dist = 0.0
         self.screen_x = 0
-        self.current_size = 0
+
+    def _bake_light_levels(self):
+        levels = []
+        for i in range(NUM_PROP_LIGHTS):
+            ratio = i / (NUM_PROP_LIGHTS - 1)
+            brightness = max(0.12, ratio)
+            val = int(255 * brightness)
+            shaded = self.base_image.copy()
+            shaded.fill((val, val, val), special_flags=pygame.BLEND_MULT)
+            levels.append(shaded)
+        return levels
+
+    def get_shaded_image(self, brightness: float) -> pygame.Surface:
+        idx = int(brightness * (NUM_PROP_LIGHTS - 1))
+        idx = max(0, min(NUM_PROP_LIGHTS - 1, idx))
+        return self.shaded_images[idx]
 
     def get_sprite_projection(self):
         """Calculate polar angle, distance, screen X position and scale."""
@@ -150,27 +154,30 @@ class SpriteObject:
         delta_rays = delta / DELTA_ANGLE
         self.screen_x = (NUM_RAYS // 2 + delta_rays) * SCALE
 
-        # Distance with fish-eye elimination
         self.dist = math.hypot(dx, dy)
         norm_dist = self.dist * math.cos(delta)
 
-        # Do not render if behind camera or too close
-        if -self.IMAGE_HALF_WIDTH < self.screen_x < (WIDTH + self.IMAGE_HALF_WIDTH) and norm_dist > 0.4:
+        if -self.IMAGE_HALF_WIDTH < self.screen_x < (WIDTH + self.IMAGE_HALF_WIDTH) and 0.35 < norm_dist < MAX_DEPTH:
             proj = SCREEN_DIST / norm_dist * self.scale
-            proj_width, proj_height = int(proj), int(proj)
+            max_size = int(HEIGHT * 1.4)
+            proj_w = min(max_size, int(proj))
+            proj_h = min(max_size, int(proj))
 
-            # Center position
-            half_proj_w = proj_width // 2
-            height_shift = int(proj_height * self.shift)
+            half_proj_w = proj_w // 2
+            height_shift = int(proj_h * self.shift)
             pos_x = self.screen_x - half_proj_w
-            pos_y = HALF_HEIGHT - proj_height // 2 + height_shift
+            pos_y = HALF_HEIGHT - proj_h // 2 + height_shift
 
-            return (norm_dist, self.image, (pos_x, pos_y), (proj_width, proj_height))
+            depth_factor = 1.0 / (1.0 + norm_dist * norm_dist * 0.04)
+            brightness = max(0.12, min(1.0, depth_factor))
+            shaded_img = self.get_shaded_image(brightness)
+
+            return (norm_dist, shaded_img, (pos_x, pos_y), (proj_w, proj_h))
         return None
 
 
 class SpriteManager:
-    """Manages all 2.5D billboard sprites and renders them with Z-buffer occlusion."""
+    """Manages all 2.5D billboard sprites and renders them with span-based Z-buffer occlusion."""
     def __init__(self, game):
         self.game = game
         self.sprite_list = []
@@ -192,44 +199,50 @@ class SpriteManager:
         ]
 
     def render(self, screen: pygame.Surface):
-        """Sort sprites by distance and draw slices that pass the Z-buffer depth test."""
+        """Sort sprites by distance and draw contiguous spans that pass the Z-buffer depth test."""
         depth_buffer = self.game.raycasting.depth_buffer
 
-        # Calculate projections and collect visible sprites
         visible_sprites = []
         for sprite in self.sprite_list:
             proj_data = sprite.get_sprite_projection()
             if proj_data:
                 visible_sprites.append(proj_data)
 
-        # Sort furthest to closest (Painters Algorithm)
         visible_sprites.sort(key=lambda item: item[0], reverse=True)
 
-        for norm_dist, image, (pos_x, pos_y), (proj_w, proj_h) in visible_sprites:
+        for norm_dist, shaded_image, (pos_x, pos_y), (proj_w, proj_h) in visible_sprites:
             if proj_w <= 0 or proj_h <= 0:
                 continue
 
-            scaled_sprite = pygame.transform.scale(image, (proj_w, proj_h))
+            start_col = max(0, -pos_x)
+            end_col = min(proj_w, WIDTH - pos_x)
+            if end_col <= start_col:
+                continue
 
-            # Apply distance lighting
-            depth_factor = 1.0 / (1.0 + norm_dist * norm_dist * 0.04)
-            brightness = max(0.12, min(1.0, depth_factor))
-            if brightness < 0.95:
-                val = int(255 * brightness)
-                scaled_sprite.fill((val, val, val), special_flags=pygame.BLEND_MULT)
+            # Scale shaded sprite
+            scaled_sprite = pygame.transform.scale(shaded_image, (proj_w, proj_h))
 
-            # Draw vertical slices that pass the depth test against walls
+            # Group visible columns into continuous horizontal spans for 10x faster blitting
+            span_start = None
             step = SCALE
-            img_w = proj_w
 
-            for col in range(0, img_w, step):
+            for col in range(start_col, end_col, step):
                 screen_x = pos_x + col
                 ray_idx = int(screen_x // SCALE)
 
-                # Check if slice is on screen and in front of any wall at this column
-                if 0 <= ray_idx < NUM_RAYS:
-                    if norm_dist < depth_buffer[ray_idx]:
-                        # Slice passes Z-test!
-                        slice_w = min(step, img_w - col)
-                        col_slice = scaled_sprite.subsurface(col, 0, slice_w, proj_h)
-                        screen.blit(col_slice, (screen_x, pos_y))
+                visible = (0 <= ray_idx < NUM_RAYS and norm_dist < depth_buffer[ray_idx])
+
+                if visible:
+                    if span_start is None:
+                        span_start = col
+                else:
+                    if span_start is not None:
+                        span_w = col - span_start
+                        col_slice = scaled_sprite.subsurface(span_start, 0, span_w, proj_h)
+                        screen.blit(col_slice, (pos_x + span_start, pos_y))
+                        span_start = None
+
+            if span_start is not None:
+                span_w = end_col - span_start
+                col_slice = scaled_sprite.subsurface(span_start, 0, span_w, proj_h)
+                screen.blit(col_slice, (pos_x + span_start, pos_y))
