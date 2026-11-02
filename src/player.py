@@ -37,19 +37,25 @@ class Player:
 
         # Forward / Backward (W, Up arrow, S, Down arrow)
         if pressed(pygame.K_w, pygame.KSCAN_W) or pressed(pygame.K_UP, pygame.KSCAN_UP):
-            dx += cos_a * speed
-            dy += sin_a * speed
+            dx += cos_a
+            dy += sin_a
         if pressed(pygame.K_s, pygame.KSCAN_S) or pressed(pygame.K_DOWN, pygame.KSCAN_DOWN):
-            dx += -cos_a * speed
-            dy += -sin_a * speed
+            dx += -cos_a
+            dy += -sin_a
 
         # Strafe Left / Right (A, D)
         if pressed(pygame.K_a, pygame.KSCAN_A):
-            dx += sin_a * speed
-            dy += -cos_a * speed
+            dx += sin_a
+            dy += -cos_a
         if pressed(pygame.K_d, pygame.KSCAN_D):
-            dx += -sin_a * speed
-            dy += cos_a * speed
+            dx += -sin_a
+            dy += cos_a
+
+        # Normalize movement vector to eliminate diagonal speed boost
+        if dx != 0.0 or dy != 0.0:
+            length = math.hypot(dx, dy)
+            dx = (dx / length) * speed
+            dy = (dy / length) * speed
 
         # Check collision with wall sliding
         self.check_wall_collision(dx, dy)
