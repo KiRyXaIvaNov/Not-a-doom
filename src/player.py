@@ -61,16 +61,16 @@ class Player:
         # Check collision with wall sliding
         self.check_wall_collision(dx, dy)
 
-        # Footstep audio when walking
+        # Soft rhythmic footstep audio when walking
         if (dx != 0.0 or dy != 0.0) and hasattr(self.game, "sound"):
             self.step_timer += self.game.delta_time
-            if self.step_timer >= 360:
+            if self.step_timer >= 440:
                 self.step_timer = 0
                 self.game.sound.play_step()
         else:
-            self.step_timer = 300  # Ready for immediate step sound on movement
+            self.step_timer = 380
 
-        # Arrow keys rotation (Left / Right)
+        # Arrow keys rotation (Left / Right) with responsive rot speed
         if pressed(pygame.K_LEFT, pygame.KSCAN_LEFT):
             self.angle -= PLAYER_ROT_SPEED * self.game.delta_time
         if pressed(pygame.K_RIGHT, pygame.KSCAN_RIGHT):

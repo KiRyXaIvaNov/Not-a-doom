@@ -1,6 +1,7 @@
 """
 DDA (Digital Differential Analyzer) Raycasting engine for Not-a-Doom.
-Calculates wall hits, distances, texture coordinates, and projection heights.
+Calculates wall hits, distances, texture coordinates, projection heights,
+and maintains a 1D Z-depth buffer for 2.5D sprite occlusion.
 """
 import math
 from src.settings import (
@@ -18,9 +19,8 @@ from src.settings import (
 class RayCasting:
     def __init__(self, game):
         self.game = game
-        # Result list contains tuples:
-        # (depth, proj_height, texture_id, wall_x, ray_index, is_horizontal_hit)
         self.ray_casting_result = []
+        self.depth_buffer = [MAX_DEPTH] * NUM_RAYS
 
     def update(self):
         self.ray_cast()
@@ -37,11 +37,9 @@ class RayCasting:
             sin_a = math.sin(ray_angle)
             cos_a = math.cos(ray_angle)
 
-            # Avoid division by zero with small epsilons
             delta_dist_x = abs(1.0 / (cos_a if cos_a != 0 else 1e-6))
             delta_dist_y = abs(1.0 / (sin_a if sin_a != 0 else 1e-6))
 
-            # Step direction and initial side distance
             if cos_a < 0:
                 step_x = -1
                 side_dist_x = (ox - map_x) * delta_dist_x
@@ -56,7 +54,6 @@ class RayCasting:
                 step_y = 1
                 side_dist_y = (map_y + 1.0 - oy) * delta_dist_y
 
-            # DDA loop to find grid wall collision
             side = 0
             cur_map_x, cur_map_y = map_x, map_y
             depth = 0.0
@@ -77,7 +74,6 @@ class RayCasting:
                     texture_id = wall_val
                     break
 
-            # Calculate exact perpendicular distance to avoid fish-eye distortion
             if side == 0:
                 depth = (cur_map_x - ox + (1 - step_x) / 2) / (cos_a if cos_a != 0 else 1e-6)
                 wall_x = oy + depth * sin_a
@@ -89,6 +85,9 @@ class RayCasting:
 
             # Fish-eye correction relative to player heading
             depth *= math.cos(self.game.player.angle - ray_angle)
+
+            # Record in depth buffer for sprite Z-testing
+            self.depth_buffer[ray] = depth
 
             # Projection calculations
             proj_height = SCREEN_DIST / (depth + 0.0001)

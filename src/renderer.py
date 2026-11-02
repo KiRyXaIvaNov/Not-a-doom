@@ -1,7 +1,6 @@
 """
 3D World Renderer for Not-a-Doom.
-Handles skybox scrolling, distance fog/shading, wall projection, and HUD overlays.
-Optimized with vertical clipping and zero-runtime-cost pre-baked lightmaps (DOOM style).
+Handles skybox scrolling, distance fog/shading, wall projection, 2.5D sprite occlusion, and HUD overlays.
 """
 import math
 import pygame
@@ -30,7 +29,6 @@ class Renderer:
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
-        # Sky scrolling based on player rotation
         self.sky_offset = -int((self.game.player.angle / math.tau) * WIDTH) % WIDTH
         self.screen.blit(self.textures.sky, (self.sky_offset, 0))
         self.screen.blit(self.textures.sky, (self.sky_offset - WIDTH, 0))
@@ -45,24 +43,19 @@ class Renderer:
     def render_walls(self):
         """Render textured 3D wall slices with hardware clipping and instant O(1) pre-shaded texture lookup."""
         for depth, proj_height, texture_id, wall_x, ray, side in self.game.raycasting.ray_casting_result:
-            # Distance shading / depth fog
             depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
-            # Side darkening for pseudo-3D lighting on wall edges
             side_factor = 0.75 if side == 1 else 1.0
             brightness = max(0.1, min(1.0, depth_factor * side_factor))
 
-            # Fetch pre-shaded texture surface (zero runtime CPU multiplication!)
             texture = self.textures.get_shaded_texture(texture_id, brightness)
             col_x = int(wall_x * (TEXTURE_SIZE - 1))
 
-            # Vertical clipping: avoid scaling massive offscreen surfaces when close to walls
             if proj_height < HEIGHT:
                 slice_height = int(proj_height)
                 screen_y = HALF_HEIGHT - slice_height // 2
                 wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
                 wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
             else:
-                # Wall is taller than screen: crop only the visible portion of the texture
                 slice_height = HEIGHT
                 screen_y = 0
                 texture_height_factor = HEIGHT / proj_height
@@ -73,7 +66,6 @@ class Renderer:
                 wall_slice = texture.subsurface(col_x, sub_y, 1, sub_h)
                 wall_column = pygame.transform.scale(wall_slice, (SCALE, HEIGHT))
 
-            # Blit directly to screen
             screen_x = ray * SCALE
             self.screen.blit(wall_column, (screen_x, screen_y))
 
@@ -82,15 +74,13 @@ class Renderer:
         cx, cy = HALF_WIDTH, HALF_HEIGHT
         size = 6
         gap = 3
-        # Horizontal bars
         pygame.draw.line(self.screen, (0, 255, 0), (cx - size - gap, cy), (cx - gap, cy), 2)
         pygame.draw.line(self.screen, (0, 255, 0), (cx + gap, cy), (cx + size + gap, cy), 2)
-        # Vertical bars
         pygame.draw.line(self.screen, (0, 255, 0), (cx, cy - size - gap), (cx, cy - gap), 2)
         pygame.draw.line(self.screen, (0, 255, 0), (cx, cy + gap), (cx, cy + size + gap), 2)
 
     def draw_minimap(self):
-        """Draw semi-transparent 2D radar minimap in top-right corner."""
+        """Draw semi-transparent 2D radar minimap with wall markers and prop icons."""
         scale = 6
         map_w = self.game.map.cols * scale
         map_h = self.game.map.rows * scale
@@ -107,6 +97,14 @@ class Renderer:
         for (gx, gy) in self.game.map.world_map:
             rect = (map_x + gx * scale, map_y + gy * scale, scale, scale)
             pygame.draw.rect(self.screen, (100, 100, 120), rect)
+
+        # Props on minimap
+        if hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                sx = map_x + int(sp.x * scale)
+                sy = map_y + int(sp.y * scale)
+                color = (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
+                pygame.draw.circle(self.screen, color, (sx, sy), 2)
 
         # Player icon & direction line
         px = map_x + int(self.game.player.x * scale)
@@ -135,9 +133,14 @@ class Renderer:
     def draw(self):
         self.draw_background()
         self.render_walls()
+
+        # Render 2.5D billboard sprites with Z-buffer depth test
+        if hasattr(self.game, 'sprite_manager'):
+            self.game.sprite_manager.render(self.screen)
+
         self.draw_crosshair()
 
-        # Draw weapon (centered at bottom with recoil & bobbing)
+        # Draw weapon in foreground
         if hasattr(self.game, 'weapon'):
             self.game.weapon.draw(self.screen)
 
