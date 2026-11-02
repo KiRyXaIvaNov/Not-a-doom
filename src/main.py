@@ -14,6 +14,7 @@ from src.player import Player
 from src.textures import TextureManager
 from src.raycasting import RayCasting
 from src.renderer import Renderer
+from src.weapon import Weapon
 
 
 class Game:
@@ -41,6 +42,7 @@ class Game:
         self.player = Player(self)
         self.textures = TextureManager()
         self.raycasting = RayCasting(self)
+        self.weapon = Weapon(self)
         self.renderer = Renderer(self)
 
     def update(self):
@@ -48,6 +50,7 @@ class Game:
         self.player.update()
         if self.mouse_grabbed:
             self.raycasting.update()
+            self.weapon.update()
 
         # Display current FPS in title
         fps = int(self.clock.get_fps())
@@ -65,17 +68,21 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 self.pressed_scancodes.add(event.scancode)
                 if event.key == pygame.K_ESCAPE:
-                    # Toggle pause / mouse capture
                     self.grab_mouse(not self.mouse_grabbed)
                 elif not self.mouse_grabbed and event.key == pygame.K_q:
-                    # Quick exit from pause
                     self.running = False
+                elif self.mouse_grabbed and (event.key == pygame.K_SPACE or event.key == pygame.K_LCTRL):
+                    # Fire weapon with Space or Left Ctrl
+                    self.weapon.fire()
             elif event.type == pygame.KEYUP:
                 self.pressed_scancodes.discard(event.scancode)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.mouse_grabbed and event.button == 1:
                     # Click to resume game
                     self.grab_mouse(True)
+                elif self.mouse_grabbed and event.button == 1:
+                    # Left click to fire shotgun
+                    self.weapon.fire()
 
     def run(self):
         while self.running:

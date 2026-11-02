@@ -136,6 +136,11 @@ class Renderer:
         self.draw_background()
         self.render_walls()
         self.draw_crosshair()
+
+        # Draw weapon (centered at bottom with recoil & bobbing)
+        if hasattr(self.game, 'weapon'):
+            self.game.weapon.draw(self.screen)
+
         self.draw_minimap()
 
         if not self.game.mouse_grabbed:
