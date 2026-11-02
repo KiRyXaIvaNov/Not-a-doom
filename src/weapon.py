@@ -1,109 +1,236 @@
 """
-Weapon system and procedural retro shotgun animation for Not-a-Doom.
+Weapon system and authentic classic Doom Super-Shotgun pixel-art for Not-a-Doom.
+Matches the tapered perspective, dual-barrel steel bevels, wooden forend and hands.
 """
 import math
 import pygame
 from src.settings import WIDTH, HEIGHT, HALF_WIDTH
 
 
-def create_shotgun_frame(frame_index: int) -> pygame.Surface:
-    """Procedurally create retro pixel-art shotgun frames with muzzle flash and recoil."""
-    w, h = 320, 280
+def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
+    """Generate high-fidelity retro DOOM shotgun sprite matching the authentic angled view."""
+    # Native pixel-art canvas (80x80)
+    w, h = 80, 80
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    cx = w // 2
 
-    center_x = w // 2
-    base_y = 120
-
-    # Frame-specific offsets
+    # Animation recoil offsets
     recoil_y = 0
-    if frame_index == 1:
-        recoil_y = -35  # Kick up on blast
-    elif frame_index == 2:
-        recoil_y = 15   # Drop down during pump
-    elif frame_index == 3:
+    if frame_index == 1:  # Firing recoil & blast
+        recoil_y = -9
+    elif frame_index == 2: # Heavy recoil kick down
         recoil_y = 8
+    elif frame_index == 3: # Pump / recovery
+        recoil_y = 3
 
-    # --- Draw Shotgun Barrels (Double-barrel / Pump steel) ---
-    barrel_w = 46
-    barrel_h = 130
-    barrel_x = center_x - barrel_w // 2
-    barrel_top = base_y + recoil_y
+    # Authentic Doom color palette
+    BLACK = (18, 18, 22)
+    STEEL_HIGHLIGHT = (180, 188, 200)
+    STEEL_LIGHT = (135, 142, 155)
+    STEEL_MID = (92, 98, 108)
+    STEEL_DARK = (62, 66, 75)
+    STEEL_SHADOW = (40, 43, 50)
+    BREECH_METAL = (48, 50, 58)
+    BREECH_DARK = (28, 30, 35)
+    WOOD_LIGHT = (165, 88, 45)
+    WOOD_MID = (125, 62, 30)
+    WOOD_DARK = (80, 38, 18)
+    WOOD_SHADOW = (50, 22, 10)
+    SKIN_LIGHT = (215, 140, 100)
+    SKIN_MID = (175, 108, 75)
+    SKIN_SHADOW = (125, 68, 45)
+    SKIN_DARK = (85, 42, 28)
 
-    # Outer dark gunmetal outline
-    pygame.draw.rect(surf, (20, 22, 25), (barrel_x - 3, barrel_top - 3, barrel_w + 6, barrel_h + 6), border_radius=4)
+    # 1. Barrels Geometry (Tapered trapezoid from muzzle down to breech)
+    top_y = 12 + recoil_y
+    breech_y = 52 + recoil_y
 
-    # Steel barrels
-    pygame.draw.rect(surf, (75, 80, 88), (barrel_x, barrel_top, barrel_w, barrel_h))
-    # Left barrel bore
-    pygame.draw.rect(surf, (100, 105, 115), (barrel_x + 4, barrel_top + 4, 16, barrel_h - 10))
-    # Right barrel bore
-    pygame.draw.rect(surf, (85, 90, 100), (barrel_x + 26, barrel_top + 4, 16, barrel_h - 10))
-    # Center barrel seam
-    pygame.draw.line(surf, (30, 32, 38), (center_x, barrel_top), (center_x, barrel_top + barrel_h), 2)
-    # Metallic specular highlight
-    pygame.draw.line(surf, (170, 180, 195), (barrel_x + 8, barrel_top + 2), (barrel_x + 8, barrel_top + barrel_h), 2)
+    top_w = 9   # Half-width at muzzle
+    bot_w = 21  # Half-width at breech
 
-    # --- Wooden Stock & Foregrip ---
-    wood_y = barrel_top + 70
-    # Dark brown wooden grip
-    wood_pts = [
-        (barrel_x - 12, wood_y),
-        (barrel_x + barrel_w + 12, wood_y),
-        (barrel_x + barrel_w + 24, h),
-        (barrel_x - 24, h),
-    ]
-    pygame.draw.polygon(surf, (110, 55, 30), wood_pts)
-    # Wood grain highlights & shadows
-    pygame.draw.polygon(surf, (140, 75, 40), [
-        (barrel_x - 6, wood_y + 4),
-        (barrel_x + 18, wood_y + 4),
-        (barrel_x + 10, h - 10),
-        (barrel_x - 18, h - 10),
+    # Left Barrel
+    # Outer facet (mid steel)
+    pygame.draw.polygon(surf, STEEL_MID, [
+        (cx - top_w, top_y + 2),
+        (cx - 1, top_y),
+        (cx - 2, breech_y),
+        (cx - bot_w, breech_y)
     ])
-    pygame.draw.polygon(surf, (30, 15, 8), wood_pts, 3)
+    # Beveled crest & specular highlight band
+    pygame.draw.polygon(surf, STEEL_LIGHT, [
+        (cx - top_w + 2, top_y + 1),
+        (cx - top_w + 4, top_y + 1),
+        (cx - bot_w + 7, breech_y - 2),
+        (cx - bot_w + 3, breech_y - 2)
+    ])
+    pygame.draw.polygon(surf, STEEL_HIGHLIGHT, [
+        (cx - top_w + 3, top_y + 2),
+        (cx - top_w + 4, top_y + 2),
+        (cx - bot_w + 5, breech_y - 3),
+        (cx - bot_w + 4, breech_y - 3)
+    ])
+    # Inner valley near rib (dark steel)
+    pygame.draw.polygon(surf, STEEL_DARK, [
+        (cx - 3, top_y + 1),
+        (cx - 1, top_y),
+        (cx - 2, breech_y),
+        (cx - 7, breech_y)
+    ])
 
-    # --- Doom Guy's Gloved Hands ---
-    # Left hand gripping underside
-    hand_color = (60, 80, 50)  # Military green-gray glove
-    hand_y = wood_y + 40
-    pygame.draw.circle(surf, hand_color, (barrel_x - 6, hand_y + 15), 24)
-    pygame.draw.circle(surf, (35, 45, 30), (barrel_x - 6, hand_y + 15), 24, 3)
+    # Right Barrel
+    # Inner valley (dark shadow)
+    pygame.draw.polygon(surf, STEEL_SHADOW, [
+        (cx + 1, top_y),
+        (cx + 4, top_y + 1),
+        (cx + 8, breech_y),
+        (cx + 2, breech_y)
+    ])
+    # Main body (mid-dark steel)
+    pygame.draw.polygon(surf, STEEL_MID, [
+        (cx + 4, top_y + 1),
+        (cx + top_w, top_y + 2),
+        (cx + bot_w, breech_y),
+        (cx + 8, breech_y)
+    ])
+    # Right outer facet shadow
+    pygame.draw.polygon(surf, STEEL_DARK, [
+        (cx + top_w - 2, top_y + 2),
+        (cx + top_w, top_y + 2),
+        (cx + bot_w, breech_y),
+        (cx + bot_w - 3, breech_y)
+    ])
 
-    # Right hand trigger grip
-    pygame.draw.circle(surf, hand_color, (barrel_x + barrel_w + 6, hand_y + 35), 26)
-    pygame.draw.circle(surf, (35, 45, 30), (barrel_x + barrel_w + 6, hand_y + 35), 26, 3)
+    # Center dividing rib
+    pygame.draw.line(surf, BLACK, (cx, top_y), (cx, breech_y), 2)
 
-    # --- Muzzle Flash (Only on Frame 1 - Firing) ---
+    # Muzzle tip openings and lip
+    pygame.draw.line(surf, BLACK, (cx - top_w - 1, top_y + 2), (cx - 1, top_y), 2)
+    pygame.draw.line(surf, BLACK, (cx, top_y), (cx + top_w + 1, top_y + 2), 2)
+    # Barrel bore holes
+    pygame.draw.ellipse(surf, BLACK, (cx - top_w + 1, top_y + 1, 6, 3))
+    pygame.draw.ellipse(surf, BLACK, (cx + 2, top_y + 1, 6, 3))
+
+    # Outer barrel thick silhouette outlines
+    pygame.draw.line(surf, BLACK, (cx - top_w - 1, top_y + 2), (cx - bot_w - 1, breech_y), 2)
+    pygame.draw.line(surf, BLACK, (cx + top_w + 1, top_y + 2), (cx + bot_w + 1, breech_y), 2)
+
+    # 2. Breech Block & Receiver (Dark iron casting)
+    breech_pts = [
+        (cx - bot_w - 1, breech_y),
+        (cx, breech_y - 2),
+        (cx + bot_w + 1, breech_y),
+        (cx + bot_w - 3, breech_y + 12),
+        (cx - bot_w + 3, breech_y + 12),
+    ]
+    pygame.draw.polygon(surf, BREECH_METAL, breech_pts)
+    # Breech center notch & sight aperture
+    pygame.draw.rect(surf, BREECH_DARK, (cx - 5, breech_y - 1, 10, 9))
+    pygame.draw.line(surf, BLACK, (cx, breech_y - 1), (cx, breech_y + 8), 2)
+    pygame.draw.polygon(surf, BLACK, breech_pts, 2)
+
+    # 3. Wooden Forend / Stock underneath
+    wood_top = breech_y + 8
+    wood_pts = [
+        (cx - bot_w + 3, wood_top),
+        (cx + bot_w - 3, wood_top),
+        (cx + bot_w + 4, h),
+        (cx - bot_w - 4, h)
+    ]
+    pygame.draw.polygon(surf, WOOD_MID, wood_pts)
+    # Wood grain highlights & shadows
+    pygame.draw.polygon(surf, WOOD_LIGHT, [
+        (cx - 10, wood_top + 1),
+        (cx - 2, wood_top + 1),
+        (cx - 4, h),
+        (cx - 14, h)
+    ])
+    pygame.draw.polygon(surf, WOOD_DARK, [
+        (cx + 3, wood_top + 1),
+        (cx + 10, wood_top + 1),
+        (cx + 14, h),
+        (cx + 5, h)
+    ])
+    # Center wooden spine
+    pygame.draw.line(surf, WOOD_SHADOW, (cx, wood_top), (cx, h), 2)
+
+    # 4. Hands & Fingers gripping both sides (Doom Guy's hands)
+    # Left hand gripping from bottom-left
+    left_hand = [
+        (cx - bot_w - 1, breech_y + 6),
+        (cx - bot_w - 8, breech_y + 14),
+        (cx - bot_w - 10, h),
+        (cx - bot_w + 2, h),
+        (cx - bot_w + 1, breech_y + 14)
+    ]
+    pygame.draw.polygon(surf, SKIN_MID, left_hand)
+    # 3 Knuckles on left
+    for offset_y in [12, 19, 26]:
+        pygame.draw.circle(surf, SKIN_LIGHT, (cx - bot_w - 5, breech_y + offset_y), 3)
+        pygame.draw.line(surf, SKIN_SHADOW, (cx - bot_w - 8, breech_y + offset_y + 3), (cx - bot_w, breech_y + offset_y + 2), 1)
+    pygame.draw.lines(surf, BLACK, False, [
+        (cx - bot_w - 1, breech_y + 6),
+        (cx - bot_w - 8, breech_y + 14),
+        (cx - bot_w - 10, h)
+    ], 2)
+
+    # Right hand gripping from bottom-right
+    right_hand = [
+        (cx + bot_w + 1, breech_y + 6),
+        (cx + bot_w + 8, breech_y + 14),
+        (cx + bot_w + 10, h),
+        (cx + bot_w - 2, h),
+        (cx + bot_w - 1, breech_y + 14)
+    ]
+    pygame.draw.polygon(surf, SKIN_MID, right_hand)
+    # 3 Knuckles on right
+    for offset_y in [12, 19, 26]:
+        pygame.draw.circle(surf, SKIN_LIGHT, (cx + bot_w + 5, breech_y + offset_y), 3)
+        pygame.draw.line(surf, SKIN_SHADOW, (cx + bot_w + 8, breech_y + offset_y + 3), (cx + bot_w, breech_y + offset_y + 2), 1)
+    pygame.draw.lines(surf, BLACK, False, [
+        (cx + bot_w + 1, breech_y + 6),
+        (cx + bot_w + 8, breech_y + 14),
+        (cx + bot_w + 10, h)
+    ], 2)
+
+    # 5. Muzzle Flash (Only on Frame 1 - Blast)
     if frame_index == 1:
-        flash_y = barrel_top - 5
-        # Large outer fiery orange flame burst
-        outer_points = [
-            (center_x, flash_y - 95),
-            (center_x - 55, flash_y - 50),
-            (center_x - 85, flash_y - 25),
-            (center_x - 30, flash_y + 5),
-            (center_x, flash_y - 15),
-            (center_x + 30, flash_y + 5),
-            (center_x + 85, flash_y - 25),
-            (center_x + 55, flash_y - 50),
+        fy = top_y
+        # Multi-pointed jagged muzzle flash (DOOM iconic flash)
+        outer_flash = [
+            (cx, fy - 26),
+            (cx - 7, fy - 16),
+            (cx - 20, fy - 20),
+            (cx - 14, fy - 8),
+            (cx - 25, fy - 1),
+            (cx - 12, fy + 4),
+            (cx - 7, fy),
+            (cx, fy - 4),
+            (cx + 7, fy),
+            (cx + 12, fy + 4),
+            (cx + 25, fy - 1),
+            (cx + 14, fy - 8),
+            (cx + 20, fy - 20),
+            (cx + 7, fy - 16),
         ]
-        pygame.draw.polygon(surf, (255, 120, 10), outer_points)
+        pygame.draw.polygon(surf, (255, 130, 20), outer_flash)
 
-        # Bright yellow inner core
-        inner_points = [
-            (center_x, flash_y - 70),
-            (center_x - 35, flash_y - 35),
-            (center_x - 50, flash_y - 15),
-            (center_x - 18, flash_y),
-            (center_x, flash_y - 10),
-            (center_x + 18, flash_y),
-            (center_x + 50, flash_y - 15),
-            (center_x + 35, flash_y - 35),
+        # Bright hot-yellow inner core
+        inner_flash = [
+            (cx, fy - 19),
+            (cx - 5, fy - 12),
+            (cx - 14, fy - 14),
+            (cx - 9, fy - 5),
+            (cx - 16, fy),
+            (cx - 5, fy + 2),
+            (cx, fy - 2),
+            (cx + 5, fy + 2),
+            (cx + 16, fy),
+            (cx + 9, fy - 5),
+            (cx + 14, fy - 14),
+            (cx + 5, fy - 12),
         ]
-        pygame.draw.polygon(surf, (255, 230, 60), inner_points)
-
-        # White-hot central blast
-        pygame.draw.circle(surf, (255, 255, 255), (center_x, flash_y - 20), 18)
+        pygame.draw.polygon(surf, (255, 240, 80), inner_flash)
+        pygame.draw.circle(surf, (255, 255, 255), (cx, fy - 6), 5)
 
     return surf
 
@@ -111,26 +238,27 @@ def create_shotgun_frame(frame_index: int) -> pygame.Surface:
 class Weapon:
     def __init__(self, game):
         self.game = game
-        self.images = [
-            create_shotgun_frame(0),  # Idle
-            create_shotgun_frame(1),  # Blast & Flash
-            create_shotgun_frame(2),  # Recoil Down
-            create_shotgun_frame(3),  # Pump
+        self.raw_images = [
+            generate_doom_shotgun_sprite(0),  # Idle
+            generate_doom_shotgun_sprite(1),  # Blast & Flash
+            generate_doom_shotgun_sprite(2),  # Recoil Down
+            generate_doom_shotgun_sprite(3),  # Pump / Return
         ]
-        self.scale_factor = 2.0
+        # Scale 4.8x for classic DOOM screen proportion (384x384px)
+        self.scale_factor = 4.8
         self.scaled_images = [
             pygame.transform.scale(
                 img,
                 (int(img.get_width() * self.scale_factor), int(img.get_height() * self.scale_factor)),
             )
-            for img in self.images
+            for img in self.raw_images
         ]
 
         self.frame_index = 0
         self.num_frames = len(self.scaled_images)
         self.is_firing = False
         self.fire_timer = 0
-        self.frame_duration = 90  # Milliseconds per animation frame
+        self.frame_duration = 85  # Crisp retro frame timing (85ms)
 
         # Weapon bobbing parameters
         self.bob_timer = 0.0
@@ -176,16 +304,15 @@ class Weapon:
 
         if moving and self.game.mouse_grabbed:
             self.bob_timer += 0.008 * self.game.delta_time
-            self.bob_x = int(math.sin(self.bob_timer) * 8)
-            self.bob_y = int(abs(math.cos(self.bob_timer)) * 12)
+            self.bob_x = int(math.sin(self.bob_timer) * 9)
+            self.bob_y = int(abs(math.cos(self.bob_timer)) * 14)
         else:
-            # Smoothly damp bobbing back to center
             self.bob_x = int(self.bob_x * 0.8)
             self.bob_y = int(self.bob_y * 0.8)
 
     def draw(self, screen: pygame.Surface):
-        """Draw shotgun centered at bottom of viewport with bobbing offset."""
+        """Draw shotgun centered at bottom of viewport aiming right below crosshair."""
         current_surf = self.scaled_images[self.frame_index]
         x = HALF_WIDTH - current_surf.get_width() // 2 + self.bob_x
-        y = HEIGHT - current_surf.get_height() + self.bob_y + 30
+        y = HEIGHT - current_surf.get_height() + self.bob_y + 15
         screen.blit(current_surf, (x, y))
