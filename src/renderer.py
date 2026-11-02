@@ -1,6 +1,7 @@
 """
 3D World Renderer for Not-a-Doom.
 Handles skybox scrolling, distance fog/shading, wall projection, and HUD overlays.
+Optimized with vertical clipping and zero-allocation BLEND_MULT shading.
 """
 import math
 import pygame
@@ -42,17 +43,28 @@ class Renderer:
         )
 
     def render_walls(self):
-        """Render textured 3D wall slices from raycasting results."""
+        """Render textured 3D wall slices with hardware-friendly clipping and fast in-place shading."""
         for depth, proj_height, texture_id, wall_x, ray, side in self.game.raycasting.ray_casting_result:
             texture = self.textures.get_texture(texture_id)
-
-            # Extract 1px wide vertical column from texture
             col_x = int(wall_x * (TEXTURE_SIZE - 1))
-            wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
 
-            # Scale slice to projected screen height
-            slice_height = int(proj_height)
-            wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
+            # Vertical clipping: avoid scaling massive offscreen surfaces when close to walls
+            if proj_height < HEIGHT:
+                slice_height = int(proj_height)
+                screen_y = HALF_HEIGHT - slice_height // 2
+                wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
+                wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
+            else:
+                # Wall is taller than screen: crop only the visible portion of the texture
+                slice_height = HEIGHT
+                screen_y = 0
+                texture_height_factor = HEIGHT / proj_height
+                sub_y = int((1.0 - texture_height_factor) * 0.5 * TEXTURE_SIZE)
+                sub_h = int(texture_height_factor * TEXTURE_SIZE)
+                sub_y = max(0, min(TEXTURE_SIZE - 1, sub_y))
+                sub_h = max(1, min(TEXTURE_SIZE - sub_y, sub_h))
+                wall_slice = texture.subsurface(col_x, sub_y, 1, sub_h)
+                wall_column = pygame.transform.scale(wall_slice, (SCALE, HEIGHT))
 
             # Distance shading / depth fog
             depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
@@ -60,16 +72,13 @@ class Renderer:
             side_factor = 0.75 if side == 1 else 1.0
             brightness = max(0.1, min(1.0, depth_factor * side_factor))
 
+            # Fast in-place SIMD shading using BLEND_MULT (zero memory allocation)
             if brightness < 0.98:
-                # Darken surface
-                darkness = int(255 * (1.0 - brightness))
-                dark_surf = pygame.Surface((SCALE, slice_height), pygame.SRCALPHA)
-                dark_surf.fill((0, 0, 0, darkness))
-                wall_column.blit(dark_surf, (0, 0))
+                shade = int(255 * brightness)
+                wall_column.fill((shade, shade, shade), special_flags=pygame.BLEND_MULT)
 
-            # Blit to screen
+            # Blit directly to screen
             screen_x = ray * SCALE
-            screen_y = HALF_HEIGHT - slice_height // 2
             self.screen.blit(wall_column, (screen_x, screen_y))
 
     def draw_crosshair(self):
