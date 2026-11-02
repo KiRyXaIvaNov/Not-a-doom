@@ -28,6 +28,7 @@ class Game:
         self.delta_time = 1
         self.running = True
         self.mouse_grabbed = True
+        self.pressed_scancodes = set()
 
         self.new_game()
 
@@ -56,11 +57,14 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
+                self.pressed_scancodes.add(event.scancode)
                 if event.key == pygame.K_ESCAPE:
-                    # Toggle mouse grab or quit
+                    # Toggle mouse grab
                     self.mouse_grabbed = not self.mouse_grabbed
                     pygame.mouse.set_visible(not self.mouse_grabbed)
                     pygame.event.set_grab(self.mouse_grabbed)
+            elif event.type == pygame.KEYUP:
+                self.pressed_scancodes.discard(event.scancode)
 
     def run(self):
         while self.running:

@@ -23,37 +23,41 @@ class Player:
         self.collision_margin = 0.25
 
     def movement(self):
-        """Handle keyboard input for movement with wall sliding and delta time."""
+        """Handle input for movement with wall sliding, supporting both EN/RU keyboard layouts and Arrows."""
         sin_a = math.sin(self.angle)
         cos_a = math.cos(self.angle)
         dx, dy = 0.0, 0.0
         speed = PLAYER_SPEED * self.game.delta_time
 
         keys = pygame.key.get_pressed()
+        scancodes = self.game.pressed_scancodes
 
-        # Forward / Backward
-        if keys[pygame.K_w]:
+        def pressed(keycode, scancode):
+            return (keycode < len(keys) and keys[keycode]) or (scancode in scancodes)
+
+        # Forward / Backward (W, Up arrow, S, Down arrow)
+        if pressed(pygame.K_w, pygame.KSCAN_W) or pressed(pygame.K_UP, pygame.KSCAN_UP):
             dx += cos_a * speed
             dy += sin_a * speed
-        if keys[pygame.K_s]:
+        if pressed(pygame.K_s, pygame.KSCAN_S) or pressed(pygame.K_DOWN, pygame.KSCAN_DOWN):
             dx += -cos_a * speed
             dy += -sin_a * speed
 
-        # Strafe Left / Right
-        if keys[pygame.K_a]:
+        # Strafe Left / Right (A, D)
+        if pressed(pygame.K_a, pygame.KSCAN_A):
             dx += sin_a * speed
             dy += -cos_a * speed
-        if keys[pygame.K_d]:
+        if pressed(pygame.K_d, pygame.KSCAN_D):
             dx += -sin_a * speed
             dy += cos_a * speed
 
         # Check collision with wall sliding
         self.check_wall_collision(dx, dy)
 
-        # Arrow keys rotation
-        if keys[pygame.K_LEFT]:
+        # Arrow keys rotation (Left / Right)
+        if pressed(pygame.K_LEFT, pygame.KSCAN_LEFT):
             self.angle -= PLAYER_ROT_SPEED * self.game.delta_time
-        if keys[pygame.K_RIGHT]:
+        if pressed(pygame.K_RIGHT, pygame.KSCAN_RIGHT):
             self.angle += PLAYER_ROT_SPEED * self.game.delta_time
 
         # Keep angle in [0, 2*pi]
@@ -63,29 +67,22 @@ class Player:
         """Check if grid cell at (x, y) is a solid wall."""
         return self.game.map.is_wall(int(x), int(y))
 
+    def is_colliding(self, x: float, y: float) -> bool:
+        """Check if player bounding box intersects any solid wall."""
+        m = self.collision_margin
+        return (
+            self.check_wall(x - m, y - m)
+            or self.check_wall(x + m, y - m)
+            or self.check_wall(x - m, y + m)
+            or self.check_wall(x + m, y + m)
+        )
+
     def check_wall_collision(self, dx: float, dy: float):
         """Move player with collision box and allow sliding along walls."""
-        scale = self.collision_margin
-
-        # Try X movement
-        next_x = self.x + dx
-        if not (
-            self.check_wall(next_x + scale, self.y)
-            or self.check_wall(next_x - scale, self.y)
-            or self.check_wall(next_x, self.y + scale)
-            or self.check_wall(next_x, self.y - scale)
-        ):
-            self.x = next_x
-
-        # Try Y movement
-        next_y = self.y + dy
-        if not (
-            self.check_wall(self.x, next_y + scale)
-            or self.check_wall(self.x, next_y - scale)
-            or self.check_wall(self.x + scale, next_y)
-            or self.check_wall(self.x - scale, next_y)
-        ):
-            self.y = next_y
+        if not self.is_colliding(self.x + dx, self.y):
+            self.x += dx
+        if not self.is_colliding(self.x, self.y + dy):
+            self.y += dy
 
     def mouse_control(self):
         """Rotate camera based on mouse movement and re-center cursor."""
