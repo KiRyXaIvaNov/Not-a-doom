@@ -1,7 +1,7 @@
 """
 3D World Renderer for Not-a-Doom.
 Handles skybox scrolling, distance fog/shading, wall projection, and HUD overlays.
-Optimized with vertical clipping and zero-allocation BLEND_MULT shading.
+Optimized with vertical clipping and zero-runtime-cost pre-baked lightmaps (DOOM style).
 """
 import math
 import pygame
@@ -43,9 +43,16 @@ class Renderer:
         )
 
     def render_walls(self):
-        """Render textured 3D wall slices with hardware-friendly clipping and fast in-place shading."""
+        """Render textured 3D wall slices with hardware clipping and instant O(1) pre-shaded texture lookup."""
         for depth, proj_height, texture_id, wall_x, ray, side in self.game.raycasting.ray_casting_result:
-            texture = self.textures.get_texture(texture_id)
+            # Distance shading / depth fog
+            depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
+            # Side darkening for pseudo-3D lighting on wall edges
+            side_factor = 0.75 if side == 1 else 1.0
+            brightness = max(0.1, min(1.0, depth_factor * side_factor))
+
+            # Fetch pre-shaded texture surface (zero runtime CPU multiplication!)
+            texture = self.textures.get_shaded_texture(texture_id, brightness)
             col_x = int(wall_x * (TEXTURE_SIZE - 1))
 
             # Vertical clipping: avoid scaling massive offscreen surfaces when close to walls
@@ -65,17 +72,6 @@ class Renderer:
                 sub_h = max(1, min(TEXTURE_SIZE - sub_y, sub_h))
                 wall_slice = texture.subsurface(col_x, sub_y, 1, sub_h)
                 wall_column = pygame.transform.scale(wall_slice, (SCALE, HEIGHT))
-
-            # Distance shading / depth fog
-            depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
-            # Side darkening for pseudo-3D lighting on wall edges
-            side_factor = 0.75 if side == 1 else 1.0
-            brightness = max(0.1, min(1.0, depth_factor * side_factor))
-
-            # Fast in-place SIMD shading using BLEND_MULT (zero memory allocation)
-            if brightness < 0.98:
-                shade = int(255 * brightness)
-                wall_column.fill((shade, shade, shade), special_flags=pygame.BLEND_MULT)
 
             # Blit directly to screen
             screen_x = ray * SCALE
