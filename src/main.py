@@ -1,0 +1,75 @@
+"""
+Main entry point and game loop for Not-a-Doom.
+"""
+import sys
+import pygame
+from src.settings import RES, FPS
+from src.map import Map
+from src.player import Player
+from src.textures import TextureManager
+from src.raycasting import RayCasting
+from src.renderer import Renderer
+
+
+class Game:
+    def __init__(self):
+        pygame.init()
+        pygame.mouse.set_visible(False)
+        pygame.event.set_grab(True)
+
+        self.screen = pygame.display.set_mode(RES)
+        pygame.display.set_caption("Not-a-Doom (2.5D Retro FPS)")
+        self.clock = pygame.time.Clock()
+        self.delta_time = 1
+        self.running = True
+        self.mouse_grabbed = True
+
+        self.new_game()
+
+    def new_game(self):
+        self.map = Map()
+        self.player = Player(self)
+        self.textures = TextureManager()
+        self.raycasting = RayCasting(self)
+        self.renderer = Renderer(self)
+
+    def update(self):
+        self.delta_time = self.clock.tick(FPS)
+        self.player.update()
+        self.raycasting.update()
+
+        # Display current FPS in title
+        fps = int(self.clock.get_fps())
+        pygame.display.set_caption(f"Not-a-Doom (2.5D Retro FPS) | FPS: {fps}")
+
+    def draw(self):
+        self.renderer.draw()
+        pygame.display.flip()
+
+    def check_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    # Toggle mouse grab or quit
+                    self.mouse_grabbed = not self.mouse_grabbed
+                    pygame.mouse.set_visible(not self.mouse_grabbed)
+                    pygame.event.set_grab(self.mouse_grabbed)
+                    if not self.mouse_grabbed:
+                        # Pressing Escape twice or closing quits
+                        pass
+
+    def run(self):
+        while self.running:
+            self.check_events()
+            self.update()
+            self.draw()
+
+        pygame.quit()
+        sys.exit()
+
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()
