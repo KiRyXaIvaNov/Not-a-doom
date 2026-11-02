@@ -10,7 +10,7 @@ HALF_HEIGHT = HEIGHT // 2
 FPS = 60
 
 # Player settings
-PLAYER_POS = 2.5, 2.5  # Starting position on the grid
+PLAYER_POS = 1.5, 1.5  # Starting position on the corridor (open space)
 PLAYER_ANGLE = 0.0     # Initial facing angle in radians
 PLAYER_SPEED = 0.004   # Movement speed
 PLAYER_ROT_SPEED = 0.0025 # Keyboard rotation speed

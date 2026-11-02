@@ -1,7 +1,12 @@
 """
 Main entry point and game loop for Not-a-Doom.
 """
+import os
 import sys
+
+# Ensure project root is in sys.path regardless of how script is executed
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import pygame
 from src.settings import RES, FPS
 from src.map import Map
@@ -23,6 +28,7 @@ class Game:
         self.delta_time = 1
         self.running = True
         self.mouse_grabbed = True
+        self.pressed_scancodes = set()
 
         self.new_game()
 
@@ -51,14 +57,14 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
+                self.pressed_scancodes.add(event.scancode)
                 if event.key == pygame.K_ESCAPE:
-                    # Toggle mouse grab or quit
+                    # Toggle mouse grab
                     self.mouse_grabbed = not self.mouse_grabbed
                     pygame.mouse.set_visible(not self.mouse_grabbed)
                     pygame.event.set_grab(self.mouse_grabbed)
-                    if not self.mouse_grabbed:
-                        # Pressing Escape twice or closing quits
-                        pass
+            elif event.type == pygame.KEYUP:
+                self.pressed_scancodes.discard(event.scancode)
 
     def run(self):
         while self.running:
