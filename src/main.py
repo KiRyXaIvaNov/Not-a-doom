@@ -19,9 +19,6 @@ from src.renderer import Renderer
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.mouse.set_visible(False)
-        pygame.event.set_grab(True)
-
         self.screen = pygame.display.set_mode(RES)
         pygame.display.set_caption("Not-a-Doom (2.5D Retro FPS)")
         self.clock = pygame.time.Clock()
@@ -30,7 +27,14 @@ class Game:
         self.mouse_grabbed = True
         self.pressed_scancodes = set()
 
+        self.grab_mouse(True)
         self.new_game()
+
+    def grab_mouse(self, grab: bool):
+        """Toggle mouse capture and visibility."""
+        self.mouse_grabbed = grab
+        pygame.mouse.set_visible(not grab)
+        pygame.event.set_grab(grab)
 
     def new_game(self):
         self.map = Map()
@@ -42,11 +46,13 @@ class Game:
     def update(self):
         self.delta_time = self.clock.tick(FPS)
         self.player.update()
-        self.raycasting.update()
+        if self.mouse_grabbed:
+            self.raycasting.update()
 
         # Display current FPS in title
         fps = int(self.clock.get_fps())
-        pygame.display.set_caption(f"Not-a-Doom (2.5D Retro FPS) | FPS: {fps}")
+        status = "PLAYING" if self.mouse_grabbed else "PAUSED (Click or press ESC to resume, Q to quit)"
+        pygame.display.set_caption(f"Not-a-Doom | {status} | FPS: {fps}")
 
     def draw(self):
         self.renderer.draw()
@@ -59,12 +65,17 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 self.pressed_scancodes.add(event.scancode)
                 if event.key == pygame.K_ESCAPE:
-                    # Toggle mouse grab
-                    self.mouse_grabbed = not self.mouse_grabbed
-                    pygame.mouse.set_visible(not self.mouse_grabbed)
-                    pygame.event.set_grab(self.mouse_grabbed)
+                    # Toggle pause / mouse capture
+                    self.grab_mouse(not self.mouse_grabbed)
+                elif not self.mouse_grabbed and event.key == pygame.K_q:
+                    # Quick exit from pause
+                    self.running = False
             elif event.type == pygame.KEYUP:
                 self.pressed_scancodes.discard(event.scancode)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if not self.mouse_grabbed and event.button == 1:
+                    # Click to resume game
+                    self.grab_mouse(True)
 
     def run(self):
         while self.running:
