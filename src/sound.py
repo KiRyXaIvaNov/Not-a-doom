@@ -1,7 +1,7 @@
 """
-Sound system and procedural retro audio synthesizer for Not-a-Doom.
-Generates punchy 16-bit sound effects (shotgun blast, pump action, footsteps)
-and saves/loads them as standard WAV files in assets/sound/.
+Sound system and audio manager for Not-a-Doom.
+Loads external sound files (MP3, WAV, OGG) from assets/sound/
+or falls back to procedural retro audio synthesis.
 """
 import os
 import wave
@@ -16,7 +16,6 @@ def save_wav(filename: str, samples: np.ndarray):
     """Save 16-bit mono PCM samples to WAV file."""
     os.makedirs(ASSETS_SOUND_DIR, exist_ok=True)
     filepath = os.path.join(ASSETS_SOUND_DIR, filename)
-    # Clamp and convert to int16
     samples = np.clip(samples, -1.0, 1.0)
     int16_data = (samples * 32767).astype(np.int16)
     with wave.open(filepath, "w") as wf:
@@ -28,36 +27,22 @@ def save_wav(filename: str, samples: np.ndarray):
 
 
 def synthesize_shotgun_blast() -> np.ndarray:
-    """Synthesize high-impact retro DOOM shotgun blast with explosion transient and crunchy decay."""
+    """Procedural fallback shotgun blast."""
     duration = 0.55
     total_samples = int(SAMPLE_RATE * duration)
     t = np.linspace(0, duration, total_samples, endpoint=False)
-
-    # 1. White noise explosion burst
     noise = np.random.uniform(-1.0, 1.0, total_samples)
-
-    # 2. Heavy sub-bass pitch drop (120 Hz dropping to 35 Hz)
     freq = 120 * np.exp(-t * 12) + 35
     boom = np.sin(2 * np.pi * freq * t)
-
-    # 3. Mid-frequency crack
     crack = np.sin(2 * np.pi * 320 * t) * np.exp(-t * 25)
-
-    # 4. Multi-stage exponential envelope
-    # Instant attack (0.005s) followed by steep decay and low-frequency rumble
     env = np.exp(-t * 8.5)
     env[: int(0.005 * SAMPLE_RATE)] = np.linspace(0.1, 1.0, int(0.005 * SAMPLE_RATE))
-
-    # Combine signals
     raw = (noise * 0.75 + boom * 0.85 + crack * 0.4) * env
-
-    # Overdrive / soft-clipping for visceral vintage distortion
-    clipped = np.tanh(raw * 2.8)
-    return clipped
+    return np.tanh(raw * 2.8)
 
 
 def synthesize_shotgun_pump() -> np.ndarray:
-    """Synthesize mechanical metallic pump action (two sequential click-clack sounds)."""
+    """Procedural fallback pump sound."""
     duration = 0.32
     total_samples = int(SAMPLE_RATE * duration)
     samples = np.zeros(total_samples, dtype=np.float32)
@@ -73,16 +58,13 @@ def synthesize_shotgun_pump() -> np.ndarray:
         env = np.exp(-sub_t * decay)
         samples[start_idx : start_idx + sub_len] += (tone * 0.6 + noise * 0.4) * env * vol
 
-    # Click 1: Slide back (mechanical snap)
     add_click(start_time=0.03, freq1=1900, freq2=850, decay=75, vol=0.8)
-    # Click 2: Slide forward (heavy lock)
     add_click(start_time=0.18, freq1=1400, freq2=550, decay=60, vol=0.95)
-
     return np.tanh(samples * 1.8)
 
 
 def synthesize_footstep() -> np.ndarray:
-    """Synthesize low muffled boot step impact."""
+    """Procedural fallback footstep."""
     duration = 0.1
     total_samples = int(SAMPLE_RATE * duration)
     t = np.linspace(0, duration, total_samples, endpoint=False)
@@ -93,10 +75,11 @@ def synthesize_footstep() -> np.ndarray:
 
 
 class SoundManager:
-    """Manages audio playback and WAV file caching."""
+    """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
         self.game = game
         self.enabled = False
+        self.has_integrated_pump = False
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=2, buffer=512)
@@ -109,22 +92,41 @@ class SoundManager:
         if self.enabled:
             self._init_sounds()
 
-    def _get_or_create_sound(self, name: str, synth_func) -> pygame.mixer.Sound:
-        path = os.path.join(ASSETS_SOUND_DIR, f"{name}.wav")
-        if not os.path.exists(path):
-            samples = synth_func()
-            save_wav(f"{name}.wav", samples)
-        return pygame.mixer.Sound(path)
+    def _find_audio_file(self, base_name: str):
+        """Check for existing MP3, WAV or OGG files."""
+        for ext in [".mp3", ".wav", ".ogg"]:
+            path = os.path.join(ASSETS_SOUND_DIR, base_name + ext)
+            if os.path.exists(path):
+                return path
+        return None
 
     def _init_sounds(self):
-        """Load or synthesize core sound effects."""
-        self.sounds["shot"] = self._get_or_create_sound("shotgun_shot", synthesize_shotgun_blast)
-        self.sounds["shot"].set_volume(0.85)
+        # 1. Shotgun Sound: prioritize user's shotgun_sound.mp3
+        user_sound = self._find_audio_file("shotgun_sound")
+        if user_sound:
+            self.sounds["shot"] = pygame.mixer.Sound(user_sound)
+            self.has_integrated_pump = True
+        else:
+            shot_file = self._find_audio_file("shotgun_shot")
+            if not shot_file:
+                shot_file = save_wav("shotgun_shot.wav", synthesize_shotgun_blast())
+            self.sounds["shot"] = pygame.mixer.Sound(shot_file)
+            self.has_integrated_pump = False
 
-        self.sounds["pump"] = self._get_or_create_sound("shotgun_pump", synthesize_shotgun_pump)
-        self.sounds["pump"].set_volume(0.7)
+        self.sounds["shot"].set_volume(0.9)
 
-        self.sounds["step"] = self._get_or_create_sound("footstep", synthesize_footstep)
+        # 2. Pump sound (only needed if shot doesn't have integrated pump)
+        pump_file = self._find_audio_file("shotgun_pump")
+        if not pump_file:
+            pump_file = save_wav("shotgun_pump.wav", synthesize_shotgun_pump())
+        self.sounds["pump"] = pygame.mixer.Sound(pump_file)
+        self.sounds["pump"].set_volume(0.75)
+
+        # 3. Footsteps
+        step_file = self._find_audio_file("footstep")
+        if not step_file:
+            step_file = save_wav("footstep.wav", synthesize_footstep())
+        self.sounds["step"] = pygame.mixer.Sound(step_file)
         self.sounds["step"].set_volume(0.35)
 
     def play_shot(self):
@@ -132,7 +134,8 @@ class SoundManager:
             self.sounds["shot"].play()
 
     def play_pump(self):
-        if self.enabled and "pump" in self.sounds:
+        # Do not play separate pump sound if shot audio already has the reload sound integrated
+        if self.enabled and not self.has_integrated_pump and "pump" in self.sounds:
             self.sounds["pump"].play()
 
     def play_step(self):

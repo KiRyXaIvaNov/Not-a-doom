@@ -235,7 +235,7 @@ class Weapon:
         self.num_frames = len(self.scaled_images)
         self.is_firing = False
         self.fire_timer = 0
-        self.frame_duration = 85
+        self.frame_duration = 100
 
         self.bob_timer = 0.0
         self.bob_x = 0
@@ -269,7 +269,11 @@ class Weapon:
         now = pygame.time.get_ticks()
 
         if self.is_firing:
-            if now - self.fire_timer > self.frame_duration:
+            # Synchronize visual cadence to audio: flash (120ms), recoil drop (240ms), pump reload (500ms)
+            durations = {1: 120, 2: 240, 3: 500}
+            cur_duration = durations.get(self.frame_index, self.frame_duration)
+
+            if now - self.fire_timer > cur_duration:
                 self.fire_timer = now
                 self.frame_index += 1
                 if self.frame_index == 3 and hasattr(self.game, "sound"):
