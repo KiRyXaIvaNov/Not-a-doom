@@ -85,7 +85,9 @@ class Player:
             self.y += dy
 
     def mouse_control(self):
-        """Rotate camera based on mouse movement and re-center cursor."""
+        """Rotate camera based on mouse movement and re-center cursor when grabbed."""
+        if not self.game.mouse_grabbed:
+            return
         mx, _ = pygame.mouse.get_pos()
         rel_x = mx - HALF_WIDTH
         if abs(rel_x) > MOUSE_MAX_REL:
@@ -94,8 +96,9 @@ class Player:
         pygame.mouse.set_pos((HALF_WIDTH, HALF_HEIGHT))
 
     def update(self):
-        self.movement()
-        self.mouse_control()
+        if self.game.mouse_grabbed:
+            self.movement()
+            self.mouse_control()
 
     @property
     def pos(self):

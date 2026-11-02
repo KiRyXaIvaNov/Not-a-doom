@@ -24,6 +24,8 @@ class Renderer:
         self.screen = game.screen
         self.textures = game.textures
         self.sky_offset = 0
+        self.font_large = pygame.font.SysFont("impact", 48)
+        self.font_small = pygame.font.SysFont("arial", 20, bold=True)
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
@@ -111,8 +113,25 @@ class Renderer:
         end_y = py + int(math.sin(self.game.player.angle) * dir_len)
         pygame.draw.line(self.screen, (255, 255, 0), (px, py), (end_x, end_y), 2)
 
+    def draw_pause_overlay(self):
+        """Darken screen and show pause instructions."""
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+
+        title = self.font_large.render("PAUSED", True, (255, 215, 0))
+        sub1 = self.font_small.render("Press ESC or Click to Resume", True, (240, 240, 240))
+        sub2 = self.font_small.render("Press Q to Quit", True, (200, 200, 200))
+
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 40)))
+        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 20)))
+        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 55)))
+
     def draw(self):
         self.draw_background()
         self.render_walls()
         self.draw_crosshair()
         self.draw_minimap()
+
+        if not self.game.mouse_grabbed:
+            self.draw_pause_overlay()
