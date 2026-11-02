@@ -15,12 +15,10 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
     Generate high-fidelity retro DOOM shotgun sprite.
     Uses solid underlays before drawing facets, guaranteeing ZERO transparent gaps.
     """
-    # Native pixel-art canvas (80x80)
     w, h = 80, 80
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     cx = w // 2
 
-    # Animation recoil offsets
     recoil_y = 0
     if frame_index == 1:   # Firing recoil & blast
         recoil_y = -9
@@ -29,7 +27,6 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
     elif frame_index == 3:  # Pump / recovery
         recoil_y = 3
 
-    # Authentic Doom color palette
     BLACK = (18, 18, 22)
     STEEL_HIGHLIGHT = (185, 192, 205)
     STEEL_LIGHT = (140, 146, 160)
@@ -48,10 +45,9 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
 
     top_y = 12 + recoil_y
     breech_y = 52 + recoil_y
-    top_w = 9   # Half-width at muzzle
-    bot_w = 21  # Half-width at breech
+    top_w = 9
+    bot_w = 21
 
-    # --- STEP 1: SOLID UNDERLAYS (Eliminates ALL transparent seams/cracks) ---
     # Barrels solid underlay
     pygame.draw.polygon(surf, STEEL_MID, [
         (cx - top_w - 2, top_y),
@@ -69,7 +65,6 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
         (cx - bot_w - 7, h)
     ])
 
-    # --- STEP 2: BARRELS SHADING & BEVELS ---
     # Left Barrel highlight & bevel
     pygame.draw.polygon(surf, STEEL_LIGHT, [
         (cx - top_w, top_y + 1),
@@ -114,11 +109,11 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
     pygame.draw.ellipse(surf, BLACK, (cx - top_w + 1, top_y + 1, 6, 3))
     pygame.draw.ellipse(surf, BLACK, (cx + 2, top_y + 1, 6, 3))
 
-    # Outer barrel thick silhouette outlines (flush with underlay)
+    # Outer barrel thick silhouette outlines
     pygame.draw.line(surf, BLACK, (cx - top_w - 2, top_y + 1), (cx - bot_w - 2, breech_y), 2)
     pygame.draw.line(surf, BLACK, (cx + top_w + 2, top_y + 1), (cx + bot_w + 2, breech_y), 2)
 
-    # --- STEP 3: BREECH BLOCK & RECEIVER ---
+    # Breech block
     breech_pts = [
         (cx - bot_w - 2, breech_y),
         (cx, breech_y - 2),
@@ -131,7 +126,7 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
     pygame.draw.line(surf, BLACK, (cx, breech_y - 1), (cx, breech_y + 8), 2)
     pygame.draw.polygon(surf, BLACK, breech_pts, 2)
 
-    # --- STEP 4: WOODEN STOCK DETAIL ---
+    # Wooden stock
     pygame.draw.polygon(surf, WOOD_LIGHT, [
         (cx - 10, wood_top + 2),
         (cx - 2, wood_top + 2),
@@ -146,8 +141,7 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
     ])
     pygame.draw.line(surf, WOOD_SHADOW, (cx, wood_top), (cx, h), 2)
 
-    # --- STEP 5: HANDS & FINGERS ---
-    # Left hand
+    # Hands & fingers
     left_hand = [
         (cx - bot_w - 2, breech_y + 6),
         (cx - bot_w - 9, breech_y + 14),
@@ -165,7 +159,6 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
         (cx - bot_w - 11, h)
     ], 2)
 
-    # Right hand
     right_hand = [
         (cx + bot_w + 2, breech_y + 6),
         (cx + bot_w + 9, breech_y + 14),
@@ -183,7 +176,7 @@ def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:
         (cx + bot_w + 11, h)
     ], 2)
 
-    # --- STEP 6: MUZZLE FLASH (Blast on Frame 1) ---
+    # Muzzle Flash (Blast on Frame 1)
     if frame_index == 1:
         fy = top_y
         outer_flash = [
@@ -249,11 +242,6 @@ class Weapon:
         self.bob_y = 0
 
     def load_or_generate_sprites(self):
-        """
-        Loads PNG sprite files if they exist in assets/sprites/weapon/,
-        otherwise generates them procedurally and saves them as PNG files.
-        This enables editing sprites in Aseprite / LibreSprite / Piskel!
-        """
         os.makedirs(ASSETS_WEAPON_DIR, exist_ok=True)
         images = []
 
@@ -269,10 +257,13 @@ class Weapon:
         return images
 
     def fire(self):
+        """Trigger blast, recoil, and sound effect."""
         if not self.is_firing:
             self.is_firing = True
             self.frame_index = 1
             self.fire_timer = pygame.time.get_ticks()
+            if hasattr(self.game, "sound"):
+                self.game.sound.play_shot()
 
     def update(self):
         now = pygame.time.get_ticks()
@@ -281,7 +272,9 @@ class Weapon:
             if now - self.fire_timer > self.frame_duration:
                 self.fire_timer = now
                 self.frame_index += 1
-                if self.frame_index >= self.num_frames:
+                if self.frame_index == 3 and hasattr(self.game, "sound"):
+                    self.game.sound.play_pump()
+                elif self.frame_index >= self.num_frames:
                     self.frame_index = 0
                     self.is_firing = False
 

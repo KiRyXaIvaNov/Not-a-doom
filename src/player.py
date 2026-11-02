@@ -1,5 +1,5 @@
 """
-Player movement, rotation and collision handling for Not-a-Doom.
+Player movement, rotation, footsteps and collision handling for Not-a-Doom.
 """
 import math
 import pygame
@@ -21,6 +21,7 @@ class Player:
         self.x, self.y = PLAYER_POS
         self.angle = PLAYER_ANGLE
         self.collision_margin = 0.25
+        self.step_timer = 0
 
     def movement(self):
         """Handle input for movement with wall sliding, supporting both EN/RU keyboard layouts and Arrows."""
@@ -59,6 +60,15 @@ class Player:
 
         # Check collision with wall sliding
         self.check_wall_collision(dx, dy)
+
+        # Footstep audio when walking
+        if (dx != 0.0 or dy != 0.0) and hasattr(self.game, "sound"):
+            self.step_timer += self.game.delta_time
+            if self.step_timer >= 360:
+                self.step_timer = 0
+                self.game.sound.play_step()
+        else:
+            self.step_timer = 300  # Ready for immediate step sound on movement
 
         # Arrow keys rotation (Left / Right)
         if pressed(pygame.K_LEFT, pygame.KSCAN_LEFT):
