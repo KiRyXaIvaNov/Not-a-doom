@@ -160,13 +160,13 @@ class SpriteObject:
         if -self.IMAGE_HALF_WIDTH < self.screen_x < (WIDTH + self.IMAGE_HALF_WIDTH) and 0.35 < norm_dist < MAX_DEPTH:
             proj = SCREEN_DIST / norm_dist * self.scale
             max_size = int(HEIGHT * 1.4)
-            proj_w = min(max_size, int(proj))
-            proj_h = min(max_size, int(proj))
+            proj_w = int(min(max_size, int(proj)))
+            proj_h = int(min(max_size, int(proj)))
 
             half_proj_w = proj_w // 2
             height_shift = int(proj_h * self.shift)
-            pos_x = self.screen_x - half_proj_w
-            pos_y = HALF_HEIGHT - proj_h // 2 + height_shift
+            pos_x = int(self.screen_x - half_proj_w)
+            pos_y = int(HALF_HEIGHT - proj_h // 2 + height_shift)
 
             depth_factor = 1.0 / (1.0 + norm_dist * norm_dist * 0.04)
             brightness = max(0.12, min(1.0, depth_factor))
@@ -214,17 +214,15 @@ class SpriteManager:
             if proj_w <= 0 or proj_h <= 0:
                 continue
 
-            start_col = max(0, -pos_x)
-            end_col = min(proj_w, WIDTH - pos_x)
+            start_col = int(max(0, -pos_x))
+            end_col = int(min(proj_w, WIDTH - pos_x))
             if end_col <= start_col:
                 continue
 
-            # Scale shaded sprite
             scaled_sprite = pygame.transform.scale(shaded_image, (proj_w, proj_h))
 
-            # Group visible columns into continuous horizontal spans for 10x faster blitting
             span_start = None
-            step = SCALE
+            step = int(SCALE)
 
             for col in range(start_col, end_col, step):
                 screen_x = pos_x + col
@@ -237,12 +235,12 @@ class SpriteManager:
                         span_start = col
                 else:
                     if span_start is not None:
-                        span_w = col - span_start
+                        span_w = int(col - span_start)
                         col_slice = scaled_sprite.subsurface(span_start, 0, span_w, proj_h)
                         screen.blit(col_slice, (pos_x + span_start, pos_y))
                         span_start = None
 
             if span_start is not None:
-                span_w = end_col - span_start
+                span_w = int(end_col - span_start)
                 col_slice = scaled_sprite.subsurface(span_start, 0, span_w, proj_h)
                 screen.blit(col_slice, (pos_x + span_start, pos_y))
