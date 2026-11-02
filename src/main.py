@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import pygame
 from src.settings import RES, FPS
+from src.sound import SoundManager
 from src.map import Map
 from src.player import Player
 from src.textures import TextureManager
@@ -38,6 +39,7 @@ class Game:
         pygame.event.set_grab(grab)
 
     def new_game(self):
+        self.sound = SoundManager(self)
         self.map = Map()
         self.player = Player(self)
         self.textures = TextureManager()
