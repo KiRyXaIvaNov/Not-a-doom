@@ -4,7 +4,7 @@ Calculates wall hits, distances, texture coordinates, projection heights,
 and maintains a 1D Z-depth buffer for 2.5D sprite occlusion.
 """
 import math
-from src.settings import (
+from src.core.settings import (
     FOV,
     HALF_FOV,
     NUM_RAYS,

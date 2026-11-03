@@ -7,13 +7,14 @@ import os
 import math
 import random
 import pygame
-from src.settings import (
+from src.core.settings import (
+    ASSETS_ENEMY_DIR,
     WIDTH, HEIGHT, HALF_WIDTH, HALF_HEIGHT, NUM_RAYS,
     SCALE, DELTA_ANGLE, SCREEN_DIST, MAX_DEPTH
 )
 
 NUM_ENEMY_LIGHTS = 8
-ENEMY_SPRITE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "sprites", "enemy"))
+ENEMY_SPRITE_DIR = ASSETS_ENEMY_DIR
 
 
 def ensure_enemy_dir():

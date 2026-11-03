@@ -8,18 +8,18 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pygame
-from src.settings import RES, FPS
-from src.sound import SoundManager
-from src.map import Map
-from src.player import Player
-from src.textures import TextureManager
-from src.raycasting import RayCasting
-from src.sprite_object import SpriteManager
-from src.enemy import EnemyManager
-from src.particles import ParticleManager
-from src.projectile import ProjectileManager
-from src.renderer import Renderer
-from src.weapon import Weapon
+from src.core.settings import RES, FPS
+from src.audio.sound import SoundManager
+from src.core.map import Map
+from src.entities.player import Player
+from src.graphics.textures import TextureManager
+from src.core.raycasting import RayCasting
+from src.graphics.sprite_object import SpriteManager
+from src.entities.enemy import EnemyManager
+from src.combat.particles import ParticleManager
+from src.combat.projectile import ProjectileManager
+from src.graphics.renderer import Renderer
+from src.combat.weapon import Weapon
 
 
 class Game:

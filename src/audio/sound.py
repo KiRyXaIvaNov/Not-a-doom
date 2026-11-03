@@ -1,3 +1,4 @@
+from src.core.settings import ASSETS_SOUND_DIR
 """
 Sound system and audio manager for Not-a-Doom.
 Loads external sound files (MP3, WAV, OGG) from assets/sound/
@@ -8,7 +9,7 @@ import wave
 import numpy as np
 import pygame
 
-ASSETS_SOUND_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sound")
+# ASSETS_SOUND_DIR imported from settings
 SAMPLE_RATE = 44100
 
 

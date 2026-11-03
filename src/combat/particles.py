@@ -5,7 +5,7 @@ Handles 3D blood splatters and wall impact sparks projected with Z-buffer occlus
 import math
 import random
 import pygame
-from src.settings import (
+from src.core.settings import (
     WIDTH, HEIGHT, HALF_WIDTH, HALF_HEIGHT,
     NUM_RAYS, SCALE, DELTA_ANGLE, SCREEN_DIST, MAX_DEPTH
 )

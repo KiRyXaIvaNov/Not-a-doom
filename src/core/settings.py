@@ -1,7 +1,19 @@
 """
 Game settings and constants for Not-a-Doom.
 """
+import os
 import math
+
+# Project Directory & Asset Paths
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+ASSETS_SOUND_DIR = os.path.join(ASSETS_DIR, "sound")
+ASSETS_SPRITES_DIR = os.path.join(ASSETS_DIR, "sprites")
+ASSETS_ENEMY_DIR = os.path.join(ASSETS_SPRITES_DIR, "enemy")
+ASSETS_WEAPON_DIR = os.path.join(ASSETS_SPRITES_DIR, "weapon")
+ASSETS_PROPS_DIR = os.path.join(ASSETS_SPRITES_DIR, "props")
+ASSETS_FIREBALL_PATH = os.path.join(ASSETS_SPRITES_DIR, "fireball.png")
+
 
 # Window & Display
 RES = WIDTH, HEIGHT = 1280, 720

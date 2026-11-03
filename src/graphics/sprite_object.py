@@ -6,7 +6,8 @@ and hardware-friendly span-based blitting with zero-allocation pre-baked lightma
 import os
 import math
 import pygame
-from src.settings import (
+from src.core.settings import (
+    ASSETS_PROPS_DIR,
     WIDTH,
     HEIGHT,
     HALF_WIDTH,
@@ -20,7 +21,7 @@ from src.settings import (
     MAX_DEPTH,
 )
 
-ASSETS_PROPS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sprites", "props")
+# ASSETS_PROPS_DIR imported from settings
 NUM_PROP_LIGHTS = 8
 
 

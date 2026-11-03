@@ -5,7 +5,7 @@ Includes pre-baked 16-level lighting maps (authentic DOOM colormap architecture)
 """
 import pygame
 import numpy as np
-from src.settings import TEXTURE_SIZE, WIDTH, HALF_HEIGHT
+from src.core.settings import TEXTURE_SIZE, WIDTH, HALF_HEIGHT
 
 NUM_LIGHT_LEVELS = 16
 
