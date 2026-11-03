@@ -68,11 +68,40 @@ def synthesize_footstep() -> np.ndarray:
     duration = 0.08
     total_samples = int(SAMPLE_RATE * duration)
     t = np.linspace(0, duration, total_samples, endpoint=False)
-    # Subtle low frequency brush without loud resonant sub-bass
     noise = np.random.uniform(-0.15, 0.15, total_samples)
-    # Quick exponential decay
     env = np.exp(-t * 60)
     return noise * env * 0.35
+
+
+def synthesize_demon_pain() -> np.ndarray:
+    """Demonic guttural grunt/snarl when taking damage."""
+    duration = 0.32
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    f_mod = 125 * np.exp(-t * 6) + 50
+    mod = np.sin(2 * np.pi * 35 * t)
+    carrier = np.sin(2 * np.pi * (f_mod + 30 * mod) * t)
+    noise = np.random.uniform(-0.4, 0.4, total_samples) * np.exp(-t * 5)
+    env = np.exp(-t * 7)
+    env[:int(0.01 * SAMPLE_RATE)] = np.linspace(0, 1, int(0.01 * SAMPLE_RATE))
+    raw = (carrier * 0.7 + noise * 0.5) * env
+    return np.tanh(raw * 2.2)
+
+
+def synthesize_demon_death() -> np.ndarray:
+    """Demonic screech descending into an explosive death rupture."""
+    duration = 0.75
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    f_mod = 420 * np.exp(-t * 4.5) + 60
+    lfo = np.sin(2 * np.pi * 28 * t)
+    tone = np.sin(2 * np.pi * (f_mod + 45 * lfo) * t)
+    noise = np.random.uniform(-0.8, 0.8, total_samples)
+    env = np.exp(-t * 3.8)
+    env[:int(0.02 * SAMPLE_RATE)] = np.linspace(0, 1, int(0.02 * SAMPLE_RATE))
+    boom = np.sin(2 * np.pi * 70 * np.exp(-t * 8) * t) * 0.6
+    raw = (tone * 0.5 + noise * 0.6 + boom) * env
+    return np.tanh(raw * 2.5)
 
 
 class SoundManager:
@@ -124,11 +153,24 @@ class SoundManager:
         self.sounds["pump"].set_volume(0.75)
 
         # 3. Soft muffled footstep (calm, low volume)
-        step_path = os.path.join(ASSETS_SOUND_DIR, "footstep.wav")
-        # Regenerate with soft synthesis
-        save_wav("footstep.wav", synthesize_footstep())
-        self.sounds["step"] = pygame.mixer.Sound(step_path)
+        step_file = self._find_audio_file("footstep")
+        if not step_file:
+            step_file = save_wav("footstep.wav", synthesize_footstep())
+        self.sounds["step"] = pygame.mixer.Sound(step_file)
         self.sounds["step"].set_volume(0.12)  # Soft background volume
+
+        # 4. Demonic combat sounds
+        pain_file = self._find_audio_file("demon_pain")
+        if not pain_file:
+            pain_file = save_wav("demon_pain.wav", synthesize_demon_pain())
+        self.sounds["demon_pain"] = pygame.mixer.Sound(pain_file)
+        self.sounds["demon_pain"].set_volume(0.85)
+
+        death_file = self._find_audio_file("demon_death")
+        if not death_file:
+            death_file = save_wav("demon_death.wav", synthesize_demon_death())
+        self.sounds["demon_death"] = pygame.mixer.Sound(death_file)
+        self.sounds["demon_death"].set_volume(0.95)
 
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
@@ -141,3 +183,11 @@ class SoundManager:
     def play_step(self):
         if self.enabled and "step" in self.sounds:
             self.sounds["step"].play()
+
+    def play_demon_pain(self):
+        if self.enabled and "demon_pain" in self.sounds:
+            self.sounds["demon_pain"].play()
+
+    def play_demon_death(self):
+        if self.enabled and "demon_death" in self.sounds:
+            self.sounds["demon_death"].play()

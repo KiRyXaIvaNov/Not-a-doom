@@ -257,13 +257,15 @@ class Weapon:
         return images
 
     def fire(self):
-        """Trigger blast, recoil, and sound effect."""
+        """Trigger blast, recoil, sound effect, and hitscan damage."""
         if not self.is_firing:
             self.is_firing = True
             self.frame_index = 1
             self.fire_timer = pygame.time.get_ticks()
             if hasattr(self.game, "sound"):
                 self.game.sound.play_shot()
+            if hasattr(self.game, "enemy_manager"):
+                self.game.enemy_manager.process_shot(self.game.player)
 
     def update(self):
         now = pygame.time.get_ticks()
