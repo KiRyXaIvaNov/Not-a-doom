@@ -3,7 +3,7 @@ Player movement, rotation, footsteps and collision handling for Not-a-Doom.
 """
 import math
 import pygame
-from src.settings import (
+from src.core.settings import (
     PLAYER_POS,
     PLAYER_ANGLE,
     PLAYER_SPEED,

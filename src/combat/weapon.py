@@ -5,9 +5,9 @@ Includes seamless solid-underlay rendering (no transparent gaps) and PNG asset l
 import os
 import math
 import pygame
-from src.settings import WIDTH, HEIGHT, HALF_WIDTH
+from src.core.settings import WIDTH, HEIGHT, HALF_WIDTH, ASSETS_WEAPON_DIR
 
-ASSETS_WEAPON_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sprites", "weapon")
+# ASSETS_WEAPON_DIR imported from settings
 
 
 def generate_doom_shotgun_sprite(frame_index: int) -> pygame.Surface:

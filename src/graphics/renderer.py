@@ -4,7 +4,7 @@ Handles skybox scrolling, distance fog/shading, wall projection, 2.5D sprite occ
 """
 import math
 import pygame
-from src.settings import (
+from src.core.settings import (
     WIDTH,
     HEIGHT,
     HALF_WIDTH,

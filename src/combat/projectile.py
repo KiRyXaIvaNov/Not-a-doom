@@ -6,12 +6,13 @@ import os
 import math
 import random
 import pygame
-from src.settings import (
+from src.core.settings import (
+    ASSETS_FIREBALL_PATH,
     WIDTH, HEIGHT, HALF_WIDTH, HALF_HEIGHT,
     NUM_RAYS, SCALE, DELTA_ANGLE, SCREEN_DIST, MAX_DEPTH
 )
 
-ASSETS_FIREBALL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "sprites", "fireball.png"))
+# ASSETS_FIREBALL_PATH imported from settings
 
 
 def get_fireball_surface() -> pygame.Surface:
