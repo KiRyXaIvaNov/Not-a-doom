@@ -540,6 +540,7 @@ class EnemyManager:
         num_pellets = 12
         spread = 0.045
         hits: dict[Enemy, int] = {}
+        barrel_hits: dict[object, int] = {}
 
         for _ in range(num_pellets):
             pellet_angle = player.angle + random.uniform(-spread, spread)
@@ -547,10 +548,27 @@ class EnemyManager:
             # Raycast distance to nearest wall
             wall_dist, hit_x, hit_y = self.game.raycasting.cast_single_ray(player.x, player.y, pellet_angle)
 
-            # Check collision with alive enemies
             closest_enemy = None
+            closest_barrel = None
             closest_dist = wall_dist
 
+            # Check collision with explosive barrels
+            if hasattr(self.game, 'sprite_manager'):
+                for sp in self.game.sprite_manager.sprite_list:
+                    if hasattr(sp, 'take_damage') and not getattr(sp, 'is_exploded', False):
+                        dx = sp.x - player.x
+                        dy = sp.y - player.y
+                        dist = math.hypot(dx, dy)
+                        if dist >= closest_dist or dist < 0.35:
+                            continue
+                        theta = math.atan2(dy, dx)
+                        diff = (theta - pellet_angle + math.pi) % math.tau - math.pi
+                        if abs(diff) <= math.atan2(0.38, dist):
+                            closest_dist = dist
+                            closest_barrel = sp
+                            closest_enemy = None
+
+            # Check collision with alive enemies
             for enemy in self.enemies:
                 if not enemy.alive:
                     continue
@@ -569,9 +587,12 @@ class EnemyManager:
                 if abs(diff) <= hit_radius_angle:
                     closest_dist = dist
                     closest_enemy = enemy
+                    closest_barrel = None
 
             if closest_enemy is not None:
                 hits[closest_enemy] = hits.get(closest_enemy, 0) + 1
+            elif closest_barrel is not None:
+                barrel_hits[closest_barrel] = barrel_hits.get(closest_barrel, 0) + 1
             else:
                 if hasattr(self.game, "particle_manager") and wall_dist < MAX_DEPTH:
                     self.game.particle_manager.emit_sparks(hit_x, hit_y, 0.5, count=2)
@@ -582,3 +603,10 @@ class EnemyManager:
             enemy.take_damage(dmg)
             if hasattr(self.game, "particle_manager"):
                 self.game.particle_manager.emit_blood(enemy.x, enemy.y, 0.5, count=count * 3)
+
+        # Apply damage to explosive barrels
+        for barrel, count in barrel_hits.items():
+            dmg = count * random.randint(15, 25)
+            barrel.take_damage(dmg)
+            if hasattr(self.game, "particle_manager"):
+                self.game.particle_manager.emit_sparks(barrel.x, barrel.y, 0.4, count=count * 2)

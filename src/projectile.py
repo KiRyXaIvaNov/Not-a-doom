@@ -102,6 +102,17 @@ class Fireball:
         self.x = new_x
         self.y = new_y
 
+        # Barrel collision
+        if hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                if hasattr(sp, 'take_damage') and not getattr(sp, 'is_exploded', False):
+                    if math.hypot(self.x - sp.x, self.y - sp.y) < 0.45:
+                        self.alive = False
+                        sp.take_damage(self.damage)
+                        if hasattr(self.game, 'particle_manager'):
+                            self.game.particle_manager.emit_sparks(self.x, self.y, self.z, count=8)
+                        return
+
         # Player collision
         player = self.game.player
         p_dist = math.hypot(self.x - player.x, self.y - player.y)

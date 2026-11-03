@@ -105,7 +105,7 @@ class Renderer:
                     continue
                 sx = map_x + int(sp.x * scale)
                 sy = map_y + int(sp.y * scale)
-                color = (0, 255, 200) if sp.name == "portal" else (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
+                color = (0, 255, 200) if sp.name == "portal" else ((70, 70, 70) if getattr(sp, "is_exploded", False) else (50, 220, 50)) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
                 rad = 3 if sp.name == "portal" else 2
                 pygame.draw.circle(self.screen, color, (sx, sy), rad)
 
