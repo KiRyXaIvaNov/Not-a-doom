@@ -173,24 +173,24 @@ class SoundManager:
         self.sounds["step"] = pygame.mixer.Sound(step_file)
         self.sounds["step"].set_volume(0.12)  # Soft background volume
 
-        # 4. Demonic combat sounds
+        # 4. Demonic combat sounds (tuned comfortable volume, ~40% quieter)
         pain_file = self._find_audio_file("demon_pain")
         if not pain_file:
             pain_file = save_wav("demon_pain.wav", synthesize_demon_pain())
         self.sounds["demon_pain"] = pygame.mixer.Sound(pain_file)
-        self.sounds["demon_pain"].set_volume(0.85)
+        self.sounds["demon_pain"].set_volume(0.50)
 
         death_file = self._find_audio_file("demon_death")
         if not death_file:
             death_file = save_wav("demon_death.wav", synthesize_demon_death())
         self.sounds["demon_death"] = pygame.mixer.Sound(death_file)
-        self.sounds["demon_death"].set_volume(0.95)
+        self.sounds["demon_death"].set_volume(0.55)
 
         alert_file = self._find_audio_file("demon_alert")
         if not alert_file:
             alert_file = save_wav("demon_alert.wav", synthesize_demon_alert())
         self.sounds["demon_alert"] = pygame.mixer.Sound(alert_file)
-        self.sounds["demon_alert"].set_volume(0.9)
+        self.sounds["demon_alert"].set_volume(0.50)
 
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
