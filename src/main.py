@@ -31,10 +31,30 @@ class Game:
         self.delta_time = 1
         self.running = True
         self.mouse_grabbed = True
+        self.is_fullscreen = False
         self.pressed_scancodes = set()
 
         self.grab_mouse(True)
         self.new_game()
+
+    def toggle_fullscreen(self):
+        """Toggle between windowed and fullscreen display with hardware scaling."""
+        self.is_fullscreen = not self.is_fullscreen
+        try:
+            if self.is_fullscreen:
+                self.screen = pygame.display.set_mode(RES, pygame.FULLSCREEN | pygame.SCALED)
+            else:
+                self.screen = pygame.display.set_mode(RES)
+        except pygame.error:
+            try:
+                if self.is_fullscreen:
+                    self.screen = pygame.display.set_mode(RES, pygame.FULLSCREEN)
+                else:
+                    self.screen = pygame.display.set_mode(RES)
+            except pygame.error:
+                self.is_fullscreen = False
+        if hasattr(self, "renderer"):
+            self.renderer.screen = self.screen
 
     def grab_mouse(self, grab: bool):
         """Toggle mouse capture and visibility."""
@@ -105,6 +125,10 @@ class Game:
                     or event.scancode == pygame.KSCAN_R
                 ):
                     self.new_game()
+                elif event.key == pygame.K_F11 or (
+                    event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT)
+                ):
+                    self.toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     self.grab_mouse(not self.mouse_grabbed)
                 elif not self.mouse_grabbed and event.key == pygame.K_q:
