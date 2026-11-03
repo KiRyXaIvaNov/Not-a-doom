@@ -131,6 +131,14 @@ class Renderer:
         end_y = py + int(math.sin(self.game.player.angle) * dir_len)
         pygame.draw.line(self.screen, (255, 255, 0), (px, py), (end_x, end_y), 2)
 
+    def draw_damage_flash(self):
+        """Draw full-screen red damage flash with smooth alpha fade."""
+        if hasattr(self.game, 'player') and self.game.player.damage_alpha > 0.0:
+            alpha = int(min(255, self.game.player.damage_alpha))
+            flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            flash_surf.fill((220, 20, 20, alpha))
+            self.screen.blit(flash_surf, (0, 0))
+
     def draw_pause_overlay(self):
         """Darken screen and show pause instructions."""
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -163,6 +171,7 @@ class Renderer:
         if hasattr(self.game, 'weapon'):
             self.game.weapon.draw(self.screen)
 
+        self.draw_damage_flash()
         self.draw_minimap()
 
         if not self.game.mouse_grabbed:
