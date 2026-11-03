@@ -28,6 +28,7 @@ class Player:
         self.max_hp = 100
         self.alive = True
         self.damage_alpha = 0.0
+        self.heal_alpha = 0.0
 
     def take_damage(self, amount: int):
         """Apply damage, trigger pain audio and screen flash."""
@@ -39,6 +40,14 @@ class Player:
             self.game.sound.play_player_hurt()
         if self.hp <= 0:
             self.alive = False
+
+    def heal(self, amount: int) -> bool:
+        """Heal player by amount up to max_hp. Returns True if healed."""
+        if not self.alive or self.hp >= self.max_hp:
+            return False
+        self.hp = min(self.max_hp, self.hp + amount)
+        self.heal_alpha = 120.0
+        return True
 
     def movement(self):
         """Handle input for movement with wall sliding, supporting both EN/RU keyboard layouts and Arrows."""
@@ -136,6 +145,10 @@ class Player:
         # Fade out red damage overlay
         if self.damage_alpha > 0.0:
             self.damage_alpha = max(0.0, self.damage_alpha - self.game.delta_time * 0.45)
+
+        # Fade out green heal overlay
+        if self.heal_alpha > 0.0:
+            self.heal_alpha = max(0.0, self.heal_alpha - self.game.delta_time * 0.45)
 
     @property
     def pos(self):

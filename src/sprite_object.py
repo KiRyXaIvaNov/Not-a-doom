@@ -285,6 +285,31 @@ class SpriteObject:
         return None
 
 
+class MedkitObject(SpriteObject):
+    """Pickup item that restores player health when stepped on."""
+    def __init__(self, game, pos: tuple[float, float], heal_amount: int = 25):
+        super().__init__(game, "medkit", pos, scale=0.45, shift=0.6)
+        self.heal_amount = heal_amount
+        self.is_picked_up = False
+
+    def update(self):
+        if self.is_picked_up:
+            return
+        player = self.game.player
+        if player.alive and player.hp < player.max_hp:
+            dist = math.hypot(self.x - player.x, self.y - player.y)
+            if dist < 0.65:
+                if player.heal(self.heal_amount):
+                    self.is_picked_up = True
+                    if hasattr(self.game, 'sound'):
+                        self.game.sound.play_medkit()
+
+    def get_sprite_projection(self):
+        if self.is_picked_up:
+            return None
+        return super().get_sprite_projection()
+
+
 class SpriteManager:
     """Manages all 2.5D billboard sprites and renders them with span-based Z-buffer occlusion."""
     def __init__(self, game):
@@ -307,9 +332,9 @@ class SpriteManager:
             SpriteObject(self.game, "pillar", (7.5, 1.5), scale=0.9, shift=0.15),
             SpriteObject(self.game, "pillar", (1.5, 7.5), scale=0.9, shift=0.15),
             SpriteObject(self.game, "pillar", (13.5, 5.5), scale=0.9, shift=0.15),
-            SpriteObject(self.game, "medkit", (1.5, 3.5), scale=0.45, shift=0.6),
-            SpriteObject(self.game, "medkit", (5.5, 5.5), scale=0.45, shift=0.6),
-            SpriteObject(self.game, "medkit", (11.5, 1.5), scale=0.45, shift=0.6),
+            MedkitObject(self.game, (1.5, 3.5), heal_amount=25),
+            MedkitObject(self.game, (5.5, 5.5), heal_amount=25),
+            MedkitObject(self.game, (11.5, 1.5), heal_amount=25),
             PortalObject(self.game, (14.5, 14.5), scale=0.95, shift=0.12),
         ]
 

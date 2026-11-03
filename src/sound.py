@@ -145,6 +145,20 @@ def synthesize_fireball_launch() -> np.ndarray:
     return np.tanh(raw * 2.2)
 
 
+def synthesize_medkit_pickup() -> np.ndarray:
+    """Bright positive retro healing pickup sound (two-tone arpeggio)."""
+    duration = 0.28
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    freq = np.where(t < 0.10, 523.25, 783.99)
+    phase = 2 * np.pi * np.cumsum(freq) / SAMPLE_RATE
+    tone = np.sin(phase) + 0.35 * np.sin(2 * phase)
+    env = np.exp(-t * 8.0)
+    env[:int(0.01 * SAMPLE_RATE)] = np.linspace(0, 1, int(0.01 * SAMPLE_RATE))
+    raw = tone * env * 0.4
+    return np.clip(raw, -1.0, 1.0)
+
+
 def synthesize_teleport_win() -> np.ndarray:
     """Victorious ascending harmonic teleporter chime."""
     duration = 0.8
@@ -256,6 +270,13 @@ class SoundManager:
         self.sounds["teleport_win"] = pygame.mixer.Sound(teleport_file)
         self.sounds["teleport_win"].set_volume(0.40)
 
+        # 8. Medkit health pickup sound
+        medkit_file = self._find_audio_file("medkit")
+        if not medkit_file:
+            medkit_file = save_wav("medkit.wav", synthesize_medkit_pickup())
+        self.sounds["medkit"] = pygame.mixer.Sound(medkit_file)
+        self.sounds["medkit"].set_volume(0.35)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -291,3 +312,7 @@ class SoundManager:
     def play_teleport_win(self):
         if self.enabled and "teleport_win" in self.sounds:
             self.sounds["teleport_win"].play()
+
+    def play_medkit(self):
+        if self.enabled and "medkit" in self.sounds:
+            self.sounds["medkit"].play()

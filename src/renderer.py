@@ -101,6 +101,8 @@ class Renderer:
         # Props on minimap
         if hasattr(self.game, 'sprite_manager'):
             for sp in self.game.sprite_manager.sprite_list:
+                if getattr(sp, 'is_picked_up', False):
+                    continue
                 sx = map_x + int(sp.x * scale)
                 sy = map_y + int(sp.y * scale)
                 color = (0, 255, 200) if sp.name == "portal" else (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
@@ -146,6 +148,14 @@ class Renderer:
             alpha = int(min(255, self.game.player.damage_alpha))
             flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             flash_surf.fill((220, 20, 20, alpha))
+            self.screen.blit(flash_surf, (0, 0))
+
+    def draw_heal_flash(self):
+        """Draw soothing green/gold screen tint on health pickup."""
+        if hasattr(self.game, 'player') and getattr(self.game.player, 'heal_alpha', 0.0) > 0.0:
+            alpha = int(min(255, self.game.player.heal_alpha))
+            flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            flash_surf.fill((40, 220, 90, alpha))
             self.screen.blit(flash_surf, (0, 0))
 
     def draw_hud(self):
@@ -254,6 +264,7 @@ class Renderer:
             self.game.weapon.draw(self.screen)
 
         self.draw_damage_flash()
+        self.draw_heal_flash()
         self.draw_hud()
         self.draw_minimap()
 
