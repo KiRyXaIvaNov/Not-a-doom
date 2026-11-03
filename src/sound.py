@@ -104,6 +104,20 @@ def synthesize_demon_death() -> np.ndarray:
     return np.tanh(raw * 2.5)
 
 
+def synthesize_demon_alert() -> np.ndarray:
+    """Rising demonic hiss/roar when spotting or pursuing player."""
+    duration = 0.42
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    f_mod = 180 + 160 * np.sin(np.pi * t / duration)
+    mod = np.sin(2 * np.pi * 45 * t)
+    carrier = np.sin(2 * np.pi * (f_mod + 40 * mod) * t)
+    noise = np.random.uniform(-0.6, 0.6, total_samples)
+    env = np.sin(np.pi * t / duration) ** 0.8
+    raw = (carrier * 0.6 + noise * 0.5) * env
+    return np.tanh(raw * 2.4)
+
+
 class SoundManager:
     """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
@@ -172,6 +186,12 @@ class SoundManager:
         self.sounds["demon_death"] = pygame.mixer.Sound(death_file)
         self.sounds["demon_death"].set_volume(0.95)
 
+        alert_file = self._find_audio_file("demon_alert")
+        if not alert_file:
+            alert_file = save_wav("demon_alert.wav", synthesize_demon_alert())
+        self.sounds["demon_alert"] = pygame.mixer.Sound(alert_file)
+        self.sounds["demon_alert"].set_volume(0.9)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -191,3 +211,7 @@ class SoundManager:
     def play_demon_death(self):
         if self.enabled and "demon_death" in self.sounds:
             self.sounds["demon_death"].play()
+
+    def play_demon_alert(self):
+        if self.enabled and "demon_alert" in self.sounds:
+            self.sounds["demon_alert"].play()
