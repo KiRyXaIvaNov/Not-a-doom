@@ -104,6 +104,20 @@ def synthesize_demon_death() -> np.ndarray:
     return np.tanh(raw * 2.5)
 
 
+def synthesize_demon_alert() -> np.ndarray:
+    """Rising demonic hiss/roar when spotting or pursuing player."""
+    duration = 0.42
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    f_mod = 180 + 160 * np.sin(np.pi * t / duration)
+    mod = np.sin(2 * np.pi * 45 * t)
+    carrier = np.sin(2 * np.pi * (f_mod + 40 * mod) * t)
+    noise = np.random.uniform(-0.6, 0.6, total_samples)
+    env = np.sin(np.pi * t / duration) ** 0.8
+    raw = (carrier * 0.6 + noise * 0.5) * env
+    return np.tanh(raw * 2.4)
+
+
 class SoundManager:
     """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
@@ -157,20 +171,26 @@ class SoundManager:
         if not step_file:
             step_file = save_wav("footstep.wav", synthesize_footstep())
         self.sounds["step"] = pygame.mixer.Sound(step_file)
-        self.sounds["step"].set_volume(0.12)  # Soft background volume
+        self.sounds["step"].set_volume(0.10)  # Soft background volume
 
-        # 4. Demonic combat sounds
+        # 4. Demonic combat sounds (tuned comfortable volume, ~40% quieter)
         pain_file = self._find_audio_file("demon_pain")
         if not pain_file:
             pain_file = save_wav("demon_pain.wav", synthesize_demon_pain())
         self.sounds["demon_pain"] = pygame.mixer.Sound(pain_file)
-        self.sounds["demon_pain"].set_volume(0.85)
+        self.sounds["demon_pain"].set_volume(0.10)
 
         death_file = self._find_audio_file("demon_death")
         if not death_file:
             death_file = save_wav("demon_death.wav", synthesize_demon_death())
         self.sounds["demon_death"] = pygame.mixer.Sound(death_file)
-        self.sounds["demon_death"].set_volume(0.95)
+        self.sounds["demon_death"].set_volume(0.15)
+
+        alert_file = self._find_audio_file("demon_alert")
+        if not alert_file:
+            alert_file = save_wav("demon_alert.wav", synthesize_demon_alert())
+        self.sounds["demon_alert"] = pygame.mixer.Sound(alert_file)
+        self.sounds["demon_alert"].set_volume(0.10)
 
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
@@ -191,3 +211,7 @@ class SoundManager:
     def play_demon_death(self):
         if self.enabled and "demon_death" in self.sounds:
             self.sounds["demon_death"].play()
+
+    def play_demon_alert(self):
+        if self.enabled and "demon_alert" in self.sounds:
+            self.sounds["demon_alert"].play()

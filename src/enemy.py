@@ -1,7 +1,7 @@
 """
 Enemy system and procedural demonic sprite generator for Not-a-Doom.
 Generates animated retro Cacodemon-style 2.5D billboard sprites with pre-baked lightmaps,
-hitscan damage processing, blood splattering, and collapsing death animations.
+AI line-of-sight tracking, acoustic gunshot alerts, wall-sliding pursuit, hitscan damage, and death animations.
 """
 import os
 import math
@@ -26,7 +26,6 @@ def draw_spikes(surface: pygame.Surface, cx: int, cy: int, r: int, variant: int)
     horn_shadow = (130, 120, 95)
     horn_tip = (245, 240, 220)
 
-    # Horn angles: top-left, top, top-right, left-cheek, right-cheek
     angles = [-2.4, -1.9, -1.57, -1.2, -0.7, -2.8, -0.3]
     horn_lengths = [16, 22, 26, 22, 16, 14, 14]
 
@@ -37,7 +36,6 @@ def draw_spikes(surface: pygame.Surface, cx: int, cy: int, r: int, variant: int)
         tip_x = cx + int(math.cos(ang) * (r + length))
         tip_y = cy + int(math.sin(ang) * (r + length))
 
-        # Perpendicular vector for horn width
         px = -math.sin(ang) * 4
         py = math.cos(ang) * 4
 
@@ -58,7 +56,7 @@ def generate_cacodemon_frame(frame_idx: int, is_hurt: bool = False) -> pygame.Su
     r = 38
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
 
-    # 1. Horns (drawn behind body)
+    # 1. Horns
     draw_spikes(surf, cx, cy, r, frame_idx)
 
     # 2. Main spherical body with spherical gradient shading
@@ -80,30 +78,24 @@ def generate_cacodemon_frame(frame_idx: int, is_hurt: bool = False) -> pygame.Su
 
         pygame.draw.circle(surf, col, (ox, oy), layer_r)
 
-    # Leathery demonic wrinkles / bumps
+    # Wrinkles
     wrinkle_color = (70, 8, 12)
     pygame.draw.arc(surf, wrinkle_color, (cx - 28, cy - 30, 56, 20), 0.2, 2.9, 2)
     pygame.draw.arc(surf, wrinkle_color, (cx - 32, cy - 18, 64, 18), 0.3, 2.8, 2)
 
-    # 3. Demonic Eye in center
+    # 3. Demonic Eye
     eye_y = cy - 8 + (1 if frame_idx in (1, 2) else 0)
     eye_rx = 13
     eye_ry = 11
 
-    # Eye socket
     pygame.draw.ellipse(surf, (40, 5, 8), (cx - eye_rx - 3, eye_y - eye_ry - 3, (eye_rx + 3) * 2, (eye_ry + 3) * 2))
-
-    # Glowing Iris
     iris_col = (255, 255, 255) if is_hurt else ((0, 230, 220) if frame_idx % 2 == 0 else (50, 255, 180))
     pygame.draw.ellipse(surf, iris_col, (cx - eye_rx, eye_y - eye_ry, eye_rx * 2, eye_ry * 2))
 
-    # Slit pupil
     pupil_w = 4 if not is_hurt else 7
     pupil_h = int(eye_ry * 1.6)
     pupil_col = (10, 15, 25) if not is_hurt else (220, 20, 20)
     pygame.draw.ellipse(surf, pupil_col, (cx - pupil_w // 2, eye_y - pupil_h // 2, pupil_w, pupil_h))
-
-    # Eye specular glint
     pygame.draw.circle(surf, (255, 255, 255), (cx - 4, eye_y - 4), 2)
 
     # 4. Menacing Maw / Teeth
@@ -112,13 +104,10 @@ def generate_cacodemon_frame(frame_idx: int, is_hurt: bool = False) -> pygame.Su
     mouth_h = 16 + jaw_open
     mouth_y = cy + 8
 
-    # Dark mouth cavity
     mouth_rect = (cx - mouth_w // 2, mouth_y, mouth_w, mouth_h)
     pygame.draw.ellipse(surf, (15, 2, 5), mouth_rect)
-    # Inner throat glow
     pygame.draw.ellipse(surf, (120, 20, 40), (cx - 14, mouth_y + 4, 28, mouth_h - 6))
 
-    # Sharp triangular fangs
     fang_col = (245, 240, 220)
     top_fangs = [-16, -10, -4, 4, 10, 16]
     for fx in top_fangs:
@@ -148,40 +137,32 @@ def generate_cacodemon_death_frame(frame_idx: int) -> pygame.Surface:
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
 
     if frame_idx == 0:
-        # Exploding rupture: swollen body with gaping tears and splattering blood
         r = 42
         pygame.draw.circle(surf, (150, 20, 25), (cx, cy), r)
         pygame.draw.circle(surf, (220, 40, 50), (cx - 4, cy - 4), r - 6)
-        # Giant violent tear in center
         pygame.draw.ellipse(surf, (30, 5, 10), (cx - 24, cy - 20, 48, 40))
-        # Ruptured eye leaking black/red
         pygame.draw.circle(surf, (255, 100, 100), (cx - 8, cy - 8), 10)
         pygame.draw.line(surf, (20, 0, 0), (cx - 16, cy - 14), (cx, cy), 3)
-        # Blood splatter bursts
         for ang in [0.4, 1.2, 2.1, 3.5, 4.2, 5.3]:
             bx = cx + int(math.cos(ang) * (r + 12))
             by = cy + int(math.sin(ang) * (r + 12))
             pygame.draw.circle(surf, (220, 20, 20), (bx, by), 3)
 
     elif frame_idx == 1:
-        # Collapsing & melting downward: flattened oval
         r_x, r_y = 44, 26
         flat_cy = cy + 20
         pygame.draw.ellipse(surf, (120, 15, 20), (cx - r_x, flat_cy - r_y, r_x * 2, r_y * 2))
         pygame.draw.ellipse(surf, (180, 25, 30), (cx - r_x + 6, flat_cy - r_y + 4, (r_x - 6) * 2, (r_y - 6) * 2))
-        # Dissolving gore & broken teeth
         for tx in [-20, -10, 5, 15]:
             pygame.draw.polygon(surf, (230, 220, 200), [(cx + tx, flat_cy - 4), (cx + tx + 4, flat_cy - 4), (cx + tx + 2, flat_cy - 12)])
         pygame.draw.ellipse(surf, (20, 5, 5), (cx - 16, flat_cy - 8, 32, 16))
 
     else:
-        # Flat puddle of demonic gore on the floor
         r_x, r_y = 46, 16
         puddle_cy = cy + 38
         pygame.draw.ellipse(surf, (70, 8, 10), (cx - r_x - 2, puddle_cy - r_y - 2, (r_x + 2) * 2, (r_y + 2) * 2))
         pygame.draw.ellipse(surf, (160, 15, 20), (cx - r_x, puddle_cy - r_y, r_x * 2, r_y * 2))
         pygame.draw.ellipse(surf, (210, 30, 35), (cx - 25, puddle_cy - 7, 50, 14))
-        # Splattered bone / horn bits
         pygame.draw.circle(surf, (220, 210, 190), (cx - 18, puddle_cy - 2), 3)
         pygame.draw.circle(surf, (220, 210, 190), (cx + 14, puddle_cy + 1), 2)
         pygame.draw.circle(surf, (240, 230, 200), (cx + 3, puddle_cy - 4), 2)
@@ -194,7 +175,6 @@ def get_cacodemon_frames() -> list[pygame.Surface]:
     ensure_enemy_dir()
     frames = []
 
-    # 4 floating animation frames
     for i in range(4):
         path = os.path.join(ENEMY_SPRITE_DIR, f"demon_{i}.png")
         if os.path.exists(path):
@@ -208,7 +188,6 @@ def get_cacodemon_frames() -> list[pygame.Surface]:
         pygame.image.save(img, path)
         frames.append(img)
 
-    # Hurt frame
     hurt_path = os.path.join(ENEMY_SPRITE_DIR, "demon_hurt.png")
     if os.path.exists(hurt_path):
         try:
@@ -244,7 +223,7 @@ def get_cacodemon_death_frames() -> list[pygame.Surface]:
 
 
 class Enemy:
-    """2.5D Demonic billboard enemy with floating animation, health, and lightmaps."""
+    """2.5D Demonic billboard enemy with AI line-of-sight tracking and wall-sliding pursuit."""
     def __init__(self, game, pos: tuple[float, float], name: str = "cacodemon", scale: float = 0.85, shift: float = 0.05):
         self.game = game
         self.x, self.y = pos
@@ -255,6 +234,13 @@ class Enemy:
         self.alive = True
         self.is_hurt = False
         self.hurt_timer = 0
+
+        # AI State Machine: "idle" -> "chase"
+        self.state = "idle"
+        self.speed = 0.0016         # Floating pursuit speed per ms (~1.6 grid units/sec)
+        self.attack_dist = 1.35     # Stops when close enough to attack
+        self.size_radius = 0.32     # Collision boundary for sliding against walls
+        self.has_alerted = False
 
         # Death states
         self.is_dying = False
@@ -303,11 +289,89 @@ class Enemy:
             return self.shaded_hurt_frame[idx]
         return self.shaded_anim_frames[self.frame_idx][idx]
 
+    def trigger_chase(self):
+        """Wake demon up into active pursuit of player."""
+        if not self.alive or self.is_dead or self.is_dying:
+            return
+        if self.state != "chase":
+            self.state = "chase"
+            if not self.has_alerted:
+                self.has_alerted = True
+                if hasattr(self.game, "sound"):
+                    self.game.sound.play_demon_alert()
+
+    def check_line_of_sight(self) -> bool:
+        """Raycast towards player to determine if unobstructed line of sight exists."""
+        player = self.game.player
+        dx = player.x - self.x
+        dy = player.y - self.y
+        dist = math.hypot(dx, dy)
+
+        if dist < 14.0:
+            ang = math.atan2(dy, dx)
+            wall_dist, _, _ = self.game.raycasting.cast_single_ray(self.x, self.y, ang)
+            if wall_dist >= dist - 0.25:
+                self.trigger_chase()
+                return True
+        return False
+
+    def move_towards_player(self, dt: float):
+        """Move towards player with soft repulsion from other demons and wall-sliding."""
+        if self.state != "chase" or not self.alive:
+            return
+
+        player = self.game.player
+        dx = player.x - self.x
+        dy = player.y - self.y
+        dist = math.hypot(dx, dy)
+
+        if dist <= self.attack_dist:
+            return
+
+        step = self.speed * dt
+        vx = (dx / dist) * step
+        vy = (dy / dist) * step
+
+        # Gentle demon-demon repulsion to prevent stacking
+        for other in self.game.enemy_manager.enemies:
+            if other is not self and other.alive:
+                odx = self.x - other.x
+                ody = self.y - other.y
+                odist = math.hypot(odx, ody)
+                if 0.01 < odist < 0.75:
+                    repulsion = (0.75 - odist) * 0.001 * dt
+                    vx += (odx / odist) * repulsion
+                    vy += (ody / odist) * repulsion
+
+        # Smooth sliding collision detection with map walls
+        r = self.size_radius
+
+        # Check horizontal move
+        can_move_x = True
+        for ox in (-r, r):
+            for oy in (-r, r):
+                if self.game.map.is_wall(int(self.x + vx + ox), int(self.y + oy)):
+                    can_move_x = False
+                    break
+        if can_move_x:
+            self.x += vx
+
+        # Check vertical move
+        can_move_y = True
+        for ox in (-r, r):
+            for oy in (-r, r):
+                if self.game.map.is_wall(int(self.x + ox), int(self.y + vy + oy)):
+                    can_move_y = False
+                    break
+        if can_move_y:
+            self.y += vy
+
     def take_damage(self, amount: int):
         """Handle incoming weapon damage, pain reactions, and death."""
         if not self.alive:
             return
         self.hp -= amount
+        self.trigger_chase()
 
         if self.hp <= 0:
             self.alive = False
@@ -323,7 +387,7 @@ class Enemy:
                 self.game.sound.play_demon_pain()
 
     def update(self):
-        """Update floating bobbing, animation frames, hurt, or death."""
+        """Update floating bobbing, AI pursuit, animation frames, hurt, or death."""
         dt = self.game.delta_time
 
         # If dying, cycle through collapsing frames
@@ -340,6 +404,10 @@ class Enemy:
 
         if self.is_dead:
             return
+
+        # AI tracking & movement
+        self.check_line_of_sight()
+        self.move_towards_player(dt)
 
         # Floating bobbing
         self.bob_timer += dt * 0.003
@@ -383,14 +451,11 @@ class Enemy:
             half_proj_w = proj_w // 2
 
             if self.is_dead:
-                # Dead gore puddle rests on the floor
                 height_shift = int(proj_h * 0.55)
             elif self.is_dying:
-                # Falling downward during death
                 falling_shift = self.shift + (self.death_frame_idx * 0.18)
                 height_shift = int(proj_h * falling_shift)
             else:
-                # Smooth demonic floating bobbing above ground
                 float_offset = math.sin(self.bob_timer) * 0.08
                 height_shift = int(proj_h * (self.shift + float_offset))
 
@@ -406,7 +471,7 @@ class Enemy:
 
 
 class EnemyManager:
-    """Manages spawning, updating, hitscan weapon damage, and rendering all active enemies."""
+    """Manages spawning, updating, AI alerts, hitscan weapon damage, and rendering all active enemies."""
     def __init__(self, game):
         self.game = game
         self.enemies: list[Enemy] = []
@@ -427,13 +492,24 @@ class EnemyManager:
         for enemy in self.enemies:
             enemy.update()
 
+    def alert_all_by_noise(self, source_pos: tuple[float, float], radius: float = 18.0):
+        """Alert all alive idle demons within acoustic hearing range when player shoots."""
+        for enemy in self.enemies:
+            if enemy.alive and enemy.state == "idle":
+                dist = math.hypot(enemy.x - source_pos[0], enemy.y - source_pos[1])
+                if dist < radius:
+                    enemy.trigger_chase()
+
     def process_shot(self, player):
         """
         Hitscan raycast shotgun blast:
         Fires 12 buckshot pellets with a spread cone.
         Checks wall occlusion and enemy hit radius.
-        Emits blood splatters, wall sparks, and deals distance-based damage.
+        Emits blood splatters, wall sparks, alerts nearby enemies, and deals distance-based damage.
         """
+        # Gunshot sound alerts nearby demons
+        self.alert_all_by_noise(player.pos)
+
         num_pellets = 12
         spread = 0.045
         hits: dict[Enemy, int] = {}
@@ -470,7 +546,6 @@ class EnemyManager:
             if closest_enemy is not None:
                 hits[closest_enemy] = hits.get(closest_enemy, 0) + 1
             else:
-                # Pellet struck a wall: emit ricochet sparks
                 if hasattr(self.game, "particle_manager") and wall_dist < MAX_DEPTH:
                     self.game.particle_manager.emit_sparks(hit_x, hit_y, 0.5, count=2)
 
