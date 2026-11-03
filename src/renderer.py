@@ -116,6 +116,10 @@ class Renderer:
                     ey = map_y + int(en.y * scale)
                     pygame.draw.circle(self.screen, (255, 30, 40), (ex, ey), rad)
                     pygame.draw.circle(self.screen, (255, 220, 220), (ex, ey), 1)
+                elif en.is_dead or en.is_dying:
+                    ex = map_x + int(en.x * scale)
+                    ey = map_y + int(en.y * scale)
+                    pygame.draw.circle(self.screen, (100, 15, 15), (ex, ey), 2)
 
         # Player icon & direction line
         px = map_x + int(self.game.player.x * scale)
@@ -148,6 +152,10 @@ class Renderer:
         # Render 2.5D billboard sprites with Z-buffer depth test
         if hasattr(self.game, 'sprite_manager'):
             self.game.sprite_manager.render(self.screen)
+
+        # Render 3D blood splatters and sparks with Z-buffer depth test
+        if hasattr(self.game, 'particle_manager'):
+            self.game.particle_manager.render(self.screen)
 
         self.draw_crosshair()
 
