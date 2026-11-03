@@ -63,8 +63,9 @@ class Game:
             self.weapon.update()
 
         fps = int(self.clock.get_fps())
+        hp_str = f"HP: {self.player.hp}%" if self.player.alive else "DEAD (Press R)"
         status = "PLAYING" if self.mouse_grabbed else "PAUSED (Click or press ESC to resume, Q to quit)"
-        pygame.display.set_caption(f"Not-a-Doom | {status} | FPS: {fps}")
+        pygame.display.set_caption(f"Not-a-Doom | {hp_str} | {status} | FPS: {fps}")
 
     def draw(self):
         self.renderer.draw()
@@ -76,7 +77,9 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 self.pressed_scancodes.add(event.scancode)
-                if event.key == pygame.K_ESCAPE:
+                if not self.player.alive and (event.key == pygame.K_r or event.scancode == pygame.KSCAN_R):
+                    self.new_game()
+                elif event.key == pygame.K_ESCAPE:
                     self.grab_mouse(not self.mouse_grabbed)
                 elif not self.mouse_grabbed and event.key == pygame.K_q:
                     self.running = False

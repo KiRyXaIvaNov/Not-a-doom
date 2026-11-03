@@ -118,6 +118,20 @@ def synthesize_demon_alert() -> np.ndarray:
     return np.tanh(raw * 2.4)
 
 
+def synthesize_player_hurt() -> np.ndarray:
+    """Classic low player pain grunt/thud upon receiving damage."""
+    duration = 0.26
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    f_mod = 140 * np.exp(-t * 10) + 75
+    tone = np.sin(2 * np.pi * f_mod * t)
+    noise = np.random.uniform(-0.3, 0.3, total_samples) * np.exp(-t * 12)
+    env = np.exp(-t * 9)
+    env[:int(0.008 * SAMPLE_RATE)] = np.linspace(0.1, 1.0, int(0.008 * SAMPLE_RATE))
+    raw = (tone * 0.75 + noise * 0.35) * env
+    return np.tanh(raw * 2.0)
+
+
 class SoundManager:
     """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
@@ -192,6 +206,13 @@ class SoundManager:
         self.sounds["demon_alert"] = pygame.mixer.Sound(alert_file)
         self.sounds["demon_alert"].set_volume(0.10)
 
+        # 5. Player hurt sound
+        hurt_file = self._find_audio_file("player_hurt")
+        if not hurt_file:
+            hurt_file = save_wav("player_hurt.wav", synthesize_player_hurt())
+        self.sounds["player_hurt"] = pygame.mixer.Sound(hurt_file)
+        self.sounds["player_hurt"].set_volume(0.75)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -215,3 +236,7 @@ class SoundManager:
     def play_demon_alert(self):
         if self.enabled and "demon_alert" in self.sounds:
             self.sounds["demon_alert"].play()
+
+    def play_player_hurt(self):
+        if self.enabled and "player_hurt" in self.sounds:
+            self.sounds["player_hurt"].play()

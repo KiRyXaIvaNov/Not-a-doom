@@ -241,6 +241,7 @@ class Enemy:
         self.attack_dist = 1.35     # Stops when close enough to attack
         self.size_radius = 0.32     # Collision boundary for sliding against walls
         self.has_alerted = False
+        self.attack_cooldown = 0.0
 
         # Death states
         self.is_dying = False
@@ -408,6 +409,19 @@ class Enemy:
         # AI tracking & movement
         self.check_line_of_sight()
         self.move_towards_player(dt)
+
+        # Melee bite attack when close to player
+        if self.state == "chase" and self.alive and hasattr(self.game, 'player') and self.game.player.alive:
+            if self.attack_cooldown > 0:
+                self.attack_cooldown -= dt
+
+            dx = self.game.player.x - self.x
+            dy = self.game.player.y - self.y
+            dist = math.hypot(dx, dy)
+            if dist <= self.attack_dist + 0.2 and self.attack_cooldown <= 0:
+                damage = random.randint(15, 25)
+                self.game.player.take_damage(damage)
+                self.attack_cooldown = 1100.0  # Attack every 1.1 seconds
 
         # Floating bobbing
         self.bob_timer += dt * 0.003

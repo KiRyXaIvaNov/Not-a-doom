@@ -23,6 +23,23 @@ class Player:
         self.collision_margin = 0.25
         self.step_timer = 0
 
+        # Health & damage system
+        self.hp = 100
+        self.max_hp = 100
+        self.alive = True
+        self.damage_alpha = 0.0
+
+    def take_damage(self, amount: int):
+        """Apply damage, trigger pain audio and screen flash."""
+        if not self.alive:
+            return
+        self.hp = max(0, self.hp - amount)
+        self.damage_alpha = 140.0  # Intense red flash
+        if hasattr(self.game, 'sound'):
+            self.game.sound.play_player_hurt()
+        if self.hp <= 0:
+            self.alive = False
+
     def movement(self):
         """Handle input for movement with wall sliding, supporting both EN/RU keyboard layouts and Arrows."""
         sin_a = math.sin(self.angle)
@@ -115,6 +132,10 @@ class Player:
         if self.game.mouse_grabbed:
             self.movement()
             self.mouse_control()
+
+        # Fade out red damage overlay
+        if self.damage_alpha > 0.0:
+            self.damage_alpha = max(0.0, self.damage_alpha - self.game.delta_time * 0.45)
 
     @property
     def pos(self):
