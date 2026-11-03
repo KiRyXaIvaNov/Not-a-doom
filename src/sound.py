@@ -211,7 +211,7 @@ class SoundManager:
         if not hurt_file:
             hurt_file = save_wav("player_hurt.wav", synthesize_player_hurt())
         self.sounds["player_hurt"] = pygame.mixer.Sound(hurt_file)
-        self.sounds["player_hurt"].set_volume(0.35)
+        self.sounds["player_hurt"].set_volume(0.75)
 
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:

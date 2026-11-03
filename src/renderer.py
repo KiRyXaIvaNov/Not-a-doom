@@ -139,6 +139,50 @@ class Renderer:
             flash_surf.fill((220, 20, 20, alpha))
             self.screen.blit(flash_surf, (0, 0))
 
+    def draw_hud(self):
+        """Draw player health bar and numerical status at top-left."""
+        if not hasattr(self.game, 'player'):
+            return
+        hp = self.game.player.hp
+        max_hp = self.game.player.max_hp
+
+        # HUD Panel background
+        panel_w, panel_h = 220, 52
+        panel_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        panel_surf.fill((14, 14, 20, 210))
+        self.screen.blit(panel_surf, (16, 16))
+
+        # Health Text
+        text_col = (50, 220, 80) if hp > 50 else (240, 200, 40) if hp > 25 else (240, 50, 50)
+        hp_text = self.font_small.render(f"HEALTH: {hp}%", True, text_col)
+        self.screen.blit(hp_text, (26, 20))
+
+        # Health bar background
+        bar_x, bar_y = 26, 44
+        bar_w, bar_h = 196, 14
+        pygame.draw.rect(self.screen, (40, 40, 48), (bar_x, bar_y, bar_w, bar_h))
+
+        # Health bar fill
+        fill_w = int((hp / max_hp) * bar_w)
+        if fill_w > 0:
+            bar_col = (40, 200, 60) if hp > 50 else (230, 180, 40) if hp > 25 else (220, 30, 30)
+            pygame.draw.rect(self.screen, bar_col, (bar_x, bar_y, fill_w, bar_h))
+
+        # Border
+        pygame.draw.rect(self.screen, (100, 100, 120), (bar_x, bar_y, bar_w, bar_h), 1)
+
+    def draw_death_screen(self):
+        """Show dramatic retro Game Over overlay when player dies."""
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((120, 10, 15, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        title = self.font_large.render("YOU DIED", True, (255, 30, 40))
+        sub = self.font_small.render("Press R to Respawn", True, (240, 240, 240))
+
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 30)))
+        self.screen.blit(sub, sub.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 25)))
+
     def draw_pause_overlay(self):
         """Darken screen and show pause instructions."""
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -172,7 +216,10 @@ class Renderer:
             self.game.weapon.draw(self.screen)
 
         self.draw_damage_flash()
+        self.draw_hud()
         self.draw_minimap()
 
-        if not self.game.mouse_grabbed:
+        if hasattr(self.game, 'player') and not self.game.player.alive:
+            self.draw_death_screen()
+        elif not self.game.mouse_grabbed:
             self.draw_pause_overlay()
