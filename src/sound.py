@@ -132,6 +132,19 @@ def synthesize_player_hurt() -> np.ndarray:
     return np.tanh(raw * 2.0)
 
 
+def synthesize_fireball_launch() -> np.ndarray:
+    """Fiery whoosh of demon plasma ball ignition."""
+    duration = 0.35
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    noise = np.random.uniform(-0.8, 0.8, total_samples)
+    freq = 240 * np.exp(-t * 8) + 80
+    whoosh = np.sin(2 * np.pi * freq * t)
+    env = np.sin(np.pi * t / duration) ** 0.9
+    raw = (whoosh * 0.5 + noise * 0.5) * env
+    return np.tanh(raw * 2.2)
+
+
 class SoundManager:
     """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
@@ -213,6 +226,13 @@ class SoundManager:
         self.sounds["player_hurt"] = pygame.mixer.Sound(hurt_file)
         self.sounds["player_hurt"].set_volume(0.75)
 
+        # 6. Demonic fireball launch sound
+        fireball_file = self._find_audio_file("fireball_launch")
+        if not fireball_file:
+            fireball_file = save_wav("fireball_launch.wav", synthesize_fireball_launch())
+        self.sounds["fireball_launch"] = pygame.mixer.Sound(fireball_file)
+        self.sounds["fireball_launch"].set_volume(0.20)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -240,3 +260,7 @@ class SoundManager:
     def play_player_hurt(self):
         if self.enabled and "player_hurt" in self.sounds:
             self.sounds["player_hurt"].play()
+
+    def play_fireball_launch(self):
+        if self.enabled and "fireball_launch" in self.sounds:
+            self.sounds["fireball_launch"].play()

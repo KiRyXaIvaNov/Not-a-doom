@@ -17,6 +17,7 @@ from src.raycasting import RayCasting
 from src.sprite_object import SpriteManager
 from src.enemy import EnemyManager
 from src.particles import ParticleManager
+from src.projectile import ProjectileManager
 from src.renderer import Renderer
 from src.weapon import Weapon
 
@@ -48,6 +49,7 @@ class Game:
         self.textures = TextureManager()
         self.raycasting = RayCasting(self)
         self.enemy_manager = EnemyManager(self)
+        self.projectile_manager = ProjectileManager(self)
         self.particle_manager = ParticleManager(self)
         self.sprite_manager = SpriteManager(self)
         self.weapon = Weapon(self)
@@ -58,6 +60,7 @@ class Game:
         self.player.update()
         if self.mouse_grabbed:
             self.particle_manager.update()
+            self.projectile_manager.update()
             self.enemy_manager.update()
             self.raycasting.update()
             self.weapon.update()
