@@ -214,6 +214,12 @@ class SpriteManager:
                 if proj_data:
                     visible_sprites.append(proj_data)
 
+        if hasattr(self.game, 'projectile_manager'):
+            for proj in self.game.projectile_manager.projectiles:
+                proj_data = proj.get_projection_data()
+                if proj_data:
+                    visible_sprites.append(proj_data)
+
         visible_sprites.sort(key=lambda item: item[0], reverse=True)
 
         for norm_dist, shaded_image, (pos_x, pos_y), (proj_w, proj_h) in visible_sprites:

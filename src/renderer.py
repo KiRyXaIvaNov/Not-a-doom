@@ -121,6 +121,14 @@ class Renderer:
                     ey = map_y + int(en.y * scale)
                     pygame.draw.circle(self.screen, (100, 15, 15), (ex, ey), 2)
 
+        # Projectiles on minimap (flying orange plasma dots)
+        if hasattr(self.game, 'projectile_manager'):
+            for proj in self.game.projectile_manager.projectiles:
+                if proj.alive:
+                    fx = map_x + int(proj.x * scale)
+                    fy = map_y + int(proj.y * scale)
+                    pygame.draw.circle(self.screen, (255, 140, 20), (fx, fy), 2)
+
         # Player icon & direction line
         px = map_x + int(self.game.player.x * scale)
         py = map_y + int(self.game.player.y * scale)

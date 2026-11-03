@@ -242,6 +242,7 @@ class Enemy:
         self.size_radius = 0.32     # Collision boundary for sliding against walls
         self.has_alerted = False
         self.attack_cooldown = 0.0
+        self.fireball_cooldown = random.uniform(800.0, 2000.0)
 
         # Death states
         self.is_dying = False
@@ -422,6 +423,18 @@ class Enemy:
                 damage = random.randint(15, 25)
                 self.game.player.take_damage(damage)
                 self.attack_cooldown = 1100.0  # Attack every 1.1 seconds
+
+            # Ranged fireball attack when in line of sight
+            if self.fireball_cooldown > 0:
+                self.fireball_cooldown -= dt
+
+            if 2.2 <= dist <= 11.0 and self.fireball_cooldown <= 0:
+                if hasattr(self.game, 'projectile_manager'):
+                    self.game.projectile_manager.shoot_fireball(
+                        (self.x, self.y, 0.5),
+                        (self.game.player.x, self.game.player.y, 0.5)
+                    )
+                    self.fireball_cooldown = random.uniform(2200.0, 3400.0)
 
         # Floating bobbing
         self.bob_timer += dt * 0.003
