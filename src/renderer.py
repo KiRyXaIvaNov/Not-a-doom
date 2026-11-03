@@ -103,8 +103,9 @@ class Renderer:
             for sp in self.game.sprite_manager.sprite_list:
                 sx = map_x + int(sp.x * scale)
                 sy = map_y + int(sp.y * scale)
-                color = (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
-                pygame.draw.circle(self.screen, color, (sx, sy), 2)
+                color = (0, 255, 200) if sp.name == "portal" else (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
+                rad = 3 if sp.name == "portal" else 2
+                pygame.draw.circle(self.screen, color, (sx, sy), rad)
 
         # Enemies on minimap (pulsing demonic red markers)
         if hasattr(self.game, 'enemy_manager'):
@@ -191,6 +192,35 @@ class Renderer:
         self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 30)))
         self.screen.blit(sub, sub.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 25)))
 
+    def draw_victory_screen(self):
+        """Show retro DOOM-style intermission victory screen with level stats."""
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((8, 28, 20, 220))
+        self.screen.blit(overlay, (0, 0))
+
+        title = self.font_large.render("LEVEL COMPLETED!", True, (255, 215, 0))
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 120)))
+
+        # Stats calculation
+        total_demons = len(self.game.enemy_manager.enemies)
+        dead_demons = sum(1 for e in self.game.enemy_manager.enemies if e.is_dead or not e.alive)
+        kill_pct = int((dead_demons / total_demons * 100)) if total_demons else 100
+
+        lines = [
+            f"KILLS: {dead_demons} / {total_demons} ({kill_pct}%)",
+            f"TIME: {self.game.elapsed_time_str}",
+            f"HEALTH REMAINING: {self.game.player.hp}%",
+        ]
+
+        y_offset = HALF_HEIGHT - 35
+        for line in lines:
+            rendered = self.font_small.render(line, True, (230, 245, 235))
+            self.screen.blit(rendered, rendered.get_rect(center=(HALF_WIDTH, y_offset)))
+            y_offset += 40
+
+        prompt = self.font_small.render("PRESS ENTER OR SPACE TO PLAY AGAIN", True, (0, 255, 200))
+        self.screen.blit(prompt, prompt.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 120)))
+
     def draw_pause_overlay(self):
         """Darken screen and show pause instructions."""
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -227,7 +257,9 @@ class Renderer:
         self.draw_hud()
         self.draw_minimap()
 
-        if hasattr(self.game, 'player') and not self.game.player.alive:
+        if hasattr(self.game, 'victory') and self.game.victory:
+            self.draw_victory_screen()
+        elif hasattr(self.game, 'player') and not self.game.player.alive:
             self.draw_death_screen()
         elif not self.game.mouse_grabbed:
             self.draw_pause_overlay()

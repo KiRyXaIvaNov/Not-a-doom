@@ -61,13 +61,18 @@ class RayCasting:
 
             while depth < MAX_DEPTH:
                 if side_dist_x < side_dist_y:
+                    depth = side_dist_x
                     side_dist_x += delta_dist_x
                     cur_map_x += step_x
                     side = 0
                 else:
+                    depth = side_dist_y
                     side_dist_y += delta_dist_y
                     cur_map_y += step_y
                     side = 1
+
+                if depth >= MAX_DEPTH:
+                    break
 
                 wall_val = self.game.map.get_wall(cur_map_x, cur_map_y)
                 if wall_val > 0:
@@ -128,13 +133,18 @@ class RayCasting:
 
         while depth < MAX_DEPTH:
             if side_dist_x < side_dist_y:
+                depth = side_dist_x
                 side_dist_x += delta_dist_x
                 cur_map_x += step_x
                 side = 0
             else:
+                depth = side_dist_y
                 side_dist_y += delta_dist_y
                 cur_map_y += step_y
                 side = 1
+
+            if depth >= MAX_DEPTH:
+                break
 
             if self.game.map.get_wall(cur_map_x, cur_map_y) > 0:
                 break

@@ -145,6 +145,22 @@ def synthesize_fireball_launch() -> np.ndarray:
     return np.tanh(raw * 2.2)
 
 
+def synthesize_teleport_win() -> np.ndarray:
+    """Victorious ascending harmonic teleporter chime."""
+    duration = 0.8
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    chord1 = np.sin(2 * np.pi * 440 * t)
+    chord2 = np.sin(2 * np.pi * 554.37 * t)
+    chord3 = np.sin(2 * np.pi * 659.25 * t)
+    chord4 = np.sin(2 * np.pi * 880 * t)
+    shimmer = 1.0 + 0.3 * np.sin(2 * np.pi * 16 * t)
+    env = np.exp(-t * 2.5)
+    env[:int(0.02 * SAMPLE_RATE)] = np.linspace(0, 1, int(0.02 * SAMPLE_RATE))
+    raw = (chord1 * 0.25 + chord2 * 0.25 + chord3 * 0.3 + chord4 * 0.35) * shimmer * env
+    return np.tanh(raw * 1.5)
+
+
 class SoundManager:
     """Manages audio playback, external audio loading, and fallback synthesis."""
     def __init__(self, game):
@@ -233,6 +249,13 @@ class SoundManager:
         self.sounds["fireball_launch"] = pygame.mixer.Sound(fireball_file)
         self.sounds["fireball_launch"].set_volume(0.20)
 
+        # 7. Teleport level complete sound
+        teleport_file = self._find_audio_file("teleport_win")
+        if not teleport_file:
+            teleport_file = save_wav("teleport_win.wav", synthesize_teleport_win())
+        self.sounds["teleport_win"] = pygame.mixer.Sound(teleport_file)
+        self.sounds["teleport_win"].set_volume(0.40)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -264,3 +287,7 @@ class SoundManager:
     def play_fireball_launch(self):
         if self.enabled and "fireball_launch" in self.sounds:
             self.sounds["fireball_launch"].play()
+
+    def play_teleport_win(self):
+        if self.enabled and "teleport_win" in self.sounds:
+            self.sounds["teleport_win"].play()
