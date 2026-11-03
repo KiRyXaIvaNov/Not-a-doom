@@ -5,7 +5,8 @@ Includes pre-baked 16-level lighting maps (authentic DOOM colormap architecture)
 """
 import pygame
 import numpy as np
-from src.core.settings import TEXTURE_SIZE, WIDTH, HALF_HEIGHT
+import os
+from src.core.settings import TEXTURE_SIZE, WIDTH, HALF_HEIGHT, ASSETS_TEXTURES_DIR
 
 NUM_LIGHT_LEVELS = 16
 
@@ -129,15 +130,54 @@ def create_sky_surface() -> pygame.Surface:
 class TextureManager:
     """Holds and caches textures with pre-baked light levels for zero runtime multiplication overhead."""
     def __init__(self):
+        os.makedirs(ASSETS_TEXTURES_DIR, exist_ok=True)
         self.raw_textures = {
-            1: create_brick_texture(),
-            2: create_stone_texture(),
-            3: create_tech_texture(),
-            4: create_hazard_texture(),
+            1: self._load_or_create_texture(1, "1.png", "brick.png", create_brick_texture),
+            2: self._load_or_create_texture(2, "2.png", "stone.png", create_stone_texture),
+            3: self._load_or_create_texture(3, "3.png", "tech.png", create_tech_texture),
+            4: self._load_or_create_texture(4, "4.png", "hazard.png", create_hazard_texture),
         }
-        self.sky = create_sky_surface()
+        self.sky = self._load_or_create_sky()
         self.shaded_textures = {}
         self._bake_lightmaps()
+
+    def _load_or_create_texture(self, tex_id: int, filename: str, alt_name: str, generator_func) -> pygame.Surface:
+        for name in [filename, alt_name]:
+            path = os.path.join(ASSETS_TEXTURES_DIR, name)
+            if os.path.exists(path):
+                try:
+                    img = pygame.image.load(path).convert()
+                    if img.get_size() != (TEXTURE_SIZE, TEXTURE_SIZE):
+                        img = pygame.transform.scale(img, (TEXTURE_SIZE, TEXTURE_SIZE))
+                    return img
+                except Exception:
+                    pass
+        surf = generator_func()
+        try:
+            save_path = os.path.join(ASSETS_TEXTURES_DIR, filename)
+            pygame.image.save(surf, save_path)
+        except Exception:
+            pass
+        return surf
+
+    def _load_or_create_sky(self) -> pygame.Surface:
+        target_w = WIDTH * 2
+        target_h = HALF_HEIGHT
+        path = os.path.join(ASSETS_TEXTURES_DIR, "sky.png")
+        if os.path.exists(path):
+            try:
+                img = pygame.image.load(path).convert()
+                if img.get_size() != (target_w, target_h):
+                    img = pygame.transform.scale(img, (target_w, target_h))
+                return img
+            except Exception:
+                pass
+        surf = create_sky_surface()
+        try:
+            pygame.image.save(surf, path)
+        except Exception:
+            pass
+        return surf
 
     def _bake_lightmaps(self):
         """Pre-shade textures into 16 discrete light levels at startup (DOOM colormap technique)."""
