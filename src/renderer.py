@@ -106,6 +106,17 @@ class Renderer:
                 color = (50, 220, 50) if sp.name == "barrel" else (220, 50, 50) if sp.name == "medkit" else (200, 150, 50)
                 pygame.draw.circle(self.screen, color, (sx, sy), 2)
 
+        # Enemies on minimap (pulsing demonic red markers)
+        if hasattr(self.game, 'enemy_manager'):
+            pulse = (math.sin(pygame.time.get_ticks() * 0.007) + 1.0) * 0.5
+            rad = int(2.5 + pulse * 1.5)
+            for en in self.game.enemy_manager.enemies:
+                if en.alive:
+                    ex = map_x + int(en.x * scale)
+                    ey = map_y + int(en.y * scale)
+                    pygame.draw.circle(self.screen, (255, 30, 40), (ex, ey), rad)
+                    pygame.draw.circle(self.screen, (255, 220, 220), (ex, ey), 1)
+
         # Player icon & direction line
         px = map_x + int(self.game.player.x * scale)
         py = map_y + int(self.game.player.y * scale)

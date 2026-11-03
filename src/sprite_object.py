@@ -208,6 +208,12 @@ class SpriteManager:
             if proj_data:
                 visible_sprites.append(proj_data)
 
+        if hasattr(self.game, 'enemy_manager'):
+            for enemy in self.game.enemy_manager.enemies:
+                proj_data = enemy.get_projection_data()
+                if proj_data:
+                    visible_sprites.append(proj_data)
+
         visible_sprites.sort(key=lambda item: item[0], reverse=True)
 
         for norm_dist, shaded_image, (pos_x, pos_y), (proj_w, proj_h) in visible_sprites:
