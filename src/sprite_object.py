@@ -104,6 +104,115 @@ def get_prop_surface(name: str, generator_func) -> pygame.Surface:
     return surf
 
 
+def generate_portal_frame(frame_idx: int) -> pygame.Surface:
+    """Procedurally create animated swirling emerald exit portal (80x80)."""
+    size = 80
+    cx, cy = size // 2, size // 2
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+
+    # Base pedestal
+    ped_w, ped_h = 40, 10
+    ped_y = size - 14
+    pygame.draw.ellipse(surf, (45, 50, 60), (cx - ped_w // 2, ped_y, ped_w, ped_h))
+    pygame.draw.ellipse(surf, (80, 90, 105), (cx - ped_w // 2 + 2, ped_y + 1, ped_w - 4, ped_h - 2))
+
+    # Swirling gateway oval
+    portal_rx, portal_ry = 18, 28
+    portal_y = cy - 4
+
+    # Outer glow & main vortex
+    pygame.draw.ellipse(surf, (0, 180, 140, 140), (cx - portal_rx - 4, portal_y - portal_ry - 4, (portal_rx + 4) * 2, (portal_ry + 4) * 2))
+    pygame.draw.ellipse(surf, (0, 240, 190), (cx - portal_rx, portal_y - portal_ry, portal_rx * 2, portal_ry * 2))
+    pygame.draw.ellipse(surf, (180, 255, 240), (cx - portal_rx + 5, portal_y - portal_ry + 6, (portal_rx - 5) * 2, (portal_ry - 6) * 2))
+    pygame.draw.ellipse(surf, (255, 255, 255), (cx - 5, portal_y - 12, 10, 24))
+
+    # Rotating energy tendrils
+    angle_offset = frame_idx * (math.pi / 2)
+    for i in range(4):
+        ang = angle_offset + i * (math.pi / 2)
+        tx = cx + int(math.cos(ang) * (portal_rx - 4))
+        ty = portal_y + int(math.sin(ang) * (portal_ry - 8))
+        pygame.draw.circle(surf, (255, 255, 255), (tx, ty), 2)
+    return surf
+
+
+class PortalObject:
+    """Animated exit portal that triggers level victory when reached."""
+    def __init__(self, game, pos: tuple[float, float], scale: float = 0.95, shift: float = 0.12):
+        self.game = game
+        self.name = "portal"
+        self.x, self.y = pos
+        self.scale = scale
+        self.shift = shift
+        self.frames = self._load_or_generate_frames()
+        self.IMAGE_WIDTH = self.frames[0].get_width()
+        self.IMAGE_HALF_WIDTH = self.IMAGE_WIDTH // 2
+        self.frame_idx = 0
+        self.anim_timer = 0.0
+        self.dist = 0.0
+        self.screen_x = 0
+
+    def _load_or_generate_frames(self) -> list[pygame.Surface]:
+        os.makedirs(ASSETS_PROPS_DIR, exist_ok=True)
+        frames = []
+        for i in range(4):
+            path = os.path.join(ASSETS_PROPS_DIR, f"portal_{i}.png")
+            if os.path.exists(path):
+                try:
+                    frames.append(pygame.image.load(path).convert_alpha())
+                    continue
+                except Exception:
+                    pass
+            surf = generate_portal_frame(i)
+            pygame.image.save(surf, path)
+            frames.append(surf)
+        return frames
+
+    def update(self):
+        dt = self.game.delta_time
+        self.anim_timer += dt
+        if self.anim_timer >= 120.0:
+            self.anim_timer = 0.0
+            self.frame_idx = (self.frame_idx + 1) % len(self.frames)
+
+        # Trigger victory if player steps into portal
+        player = self.game.player
+        if player.alive and not self.game.victory:
+            dist = math.hypot(self.x - player.x, self.y - player.y)
+            if dist < 0.70:
+                self.game.trigger_victory()
+
+    def get_sprite_projection(self):
+        dx = self.x - self.game.player.x
+        dy = self.y - self.game.player.y
+        theta = math.atan2(dy, dx)
+
+        delta = theta - self.game.player.angle
+        if (dx > 0 and self.game.player.angle > math.pi) or (dx < 0 and dy < 0):
+            delta += math.tau
+
+        delta_rays = delta / DELTA_ANGLE
+        self.screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)
+
+        self.dist = math.hypot(dx, dy)
+        norm_dist = self.dist * math.cos(delta)
+
+        if -self.IMAGE_HALF_WIDTH < self.screen_x < (WIDTH + self.IMAGE_HALF_WIDTH) and 0.35 < norm_dist < MAX_DEPTH:
+            proj = SCREEN_DIST / norm_dist * self.scale
+            max_size = int(HEIGHT * 1.4)
+            proj_w = int(min(max_size, int(proj)))
+            proj_h = int(min(max_size, int(proj)))
+
+            half_proj_w = proj_w // 2
+            height_shift = int(proj_h * self.shift)
+            pos_x = int(self.screen_x - half_proj_w)
+            pos_y = int(HALF_HEIGHT - proj_h // 2 + height_shift)
+
+            # Portal is an energy gateway, always bright
+            return (norm_dist, self.frames[self.frame_idx], (pos_x, pos_y), (proj_w, proj_h))
+        return None
+
+
 class SpriteObject:
     def __init__(self, game, name: str, pos: tuple, scale=0.7, shift=0.25):
         self.game = game
@@ -183,6 +292,11 @@ class SpriteManager:
         self.sprite_list = []
         self.setup_map_props()
 
+    def update(self):
+        for sprite in self.sprite_list:
+            if hasattr(sprite, 'update'):
+                sprite.update()
+
     def setup_map_props(self):
         """Place props around the game labyrinth."""
         self.sprite_list = [
@@ -196,6 +310,7 @@ class SpriteManager:
             SpriteObject(self.game, "medkit", (1.5, 3.5), scale=0.45, shift=0.6),
             SpriteObject(self.game, "medkit", (5.5, 5.5), scale=0.45, shift=0.6),
             SpriteObject(self.game, "medkit", (11.5, 1.5), scale=0.45, shift=0.6),
+            PortalObject(self.game, (14.5, 14.5), scale=0.95, shift=0.12),
         ]
 
     def render(self, screen: pygame.Surface):

@@ -54,20 +54,40 @@ class Game:
         self.sprite_manager = SpriteManager(self)
         self.weapon = Weapon(self)
         self.renderer = Renderer(self)
+        self.victory = False
+        self.start_ticks = pygame.time.get_ticks()
+        self.elapsed_time_str = "00:00"
+
+    def trigger_victory(self):
+        """Trigger level completion victory state."""
+        if not self.victory:
+            self.victory = True
+            secs = max(0, (pygame.time.get_ticks() - self.start_ticks) // 1000)
+            self.elapsed_time_str = f"{secs // 60:02d}:{secs % 60:02d}"
+            if hasattr(self, "sound"):
+                self.sound.play_teleport_win()
 
     def update(self):
         self.delta_time = self.clock.tick(FPS)
         self.player.update()
-        if self.mouse_grabbed:
+        if self.mouse_grabbed and not self.victory:
             self.particle_manager.update()
             self.projectile_manager.update()
             self.enemy_manager.update()
+            self.sprite_manager.update()
             self.raycasting.update()
             self.weapon.update()
 
         fps = int(self.clock.get_fps())
-        hp_str = f"HP: {self.player.hp}%" if self.player.alive else "DEAD (Press R)"
-        status = "PLAYING" if self.mouse_grabbed else "PAUSED (Click or press ESC to resume, Q to quit)"
+        hp_str = f"HP: {self.player.hp}%" if self.player.alive else "DEAD"
+        if self.victory:
+            status = f"VICTORY! Time: {self.elapsed_time_str} (Press ENTER to replay)"
+        elif not self.player.alive:
+            status = "GAME OVER (Press R to respawn)"
+        elif not self.mouse_grabbed:
+            status = "PAUSED (Click or press ESC to resume, Q to quit)"
+        else:
+            status = "PLAYING"
         pygame.display.set_caption(f"Not-a-Doom | {hp_str} | {status} | FPS: {fps}")
 
     def draw(self):
@@ -80,7 +100,10 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 self.pressed_scancodes.add(event.scancode)
-                if not self.player.alive and (event.key == pygame.K_r or event.scancode == pygame.KSCAN_R):
+                if (not self.player.alive or self.victory) and (
+                    event.key in (pygame.K_r, pygame.K_RETURN, pygame.K_SPACE)
+                    or event.scancode == pygame.KSCAN_R
+                ):
                     self.new_game()
                 elif event.key == pygame.K_ESCAPE:
                     self.grab_mouse(not self.mouse_grabbed)
