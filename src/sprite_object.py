@@ -57,6 +57,22 @@ def generate_barrel_sprite() -> pygame.Surface:
     return surf
 
 
+def generate_barrel_wreck_sprite() -> pygame.Surface:
+    """Generate charred collapsed barrel wreckage on floor."""
+    size = 64
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    cx = size // 2
+    CHAR_DARK = (20, 20, 22)
+    CHAR_RUST = (65, 40, 28)
+    SLIME_STAIN = (35, 100, 30)
+    pygame.draw.ellipse(surf, SLIME_STAIN, (cx - 24, 48, 48, 14))
+    pygame.draw.ellipse(surf, CHAR_DARK, (cx - 20, 42, 40, 18))
+    pygame.draw.ellipse(surf, CHAR_RUST, (cx - 16, 44, 32, 12))
+    pygame.draw.polygon(surf, CHAR_DARK, [(cx - 18, 46), (cx - 10, 32), (cx - 4, 48)])
+    pygame.draw.polygon(surf, CHAR_RUST, [(cx + 6, 46), (cx + 12, 34), (cx + 17, 48)])
+    return surf
+
+
 def generate_pillar_sprite() -> pygame.Surface:
     """Generate ancient stone pillar monolith."""
     size = 64
@@ -310,6 +326,79 @@ class MedkitObject(SpriteObject):
         return super().get_sprite_projection()
 
 
+class ExplosiveBarrel(SpriteObject):
+    """Toxic explosive barrel that detonates when shot, dealing splash damage and chain reactions."""
+    def __init__(self, game, pos: tuple[float, float]):
+        super().__init__(game, "barrel", pos, scale=0.7, shift=0.25)
+        self.hp = 20
+        self.is_exploded = False
+        self.is_exploding = False
+        self.detonate_timer = 0.0
+        self.wreck_image = get_prop_surface("barrel_wreck", generate_barrel_wreck_sprite)
+
+    def take_damage(self, amount: int):
+        if self.is_exploded or self.is_exploding:
+            return
+        self.hp -= amount
+        if self.hp <= 0:
+            self.trigger_explosion()
+
+    def trigger_explosion(self, delay_ms: float = 0.0):
+        if self.is_exploded or self.is_exploding:
+            return
+        if delay_ms > 0:
+            self.is_exploding = True
+            self.detonate_timer = delay_ms
+        else:
+            self.explode()
+
+    def update(self):
+        if self.is_exploding:
+            self.detonate_timer -= self.game.delta_time
+            if self.detonate_timer <= 0:
+                self.explode()
+
+    def explode(self):
+        self.is_exploding = False
+        self.is_exploded = True
+        self.base_image = self.wreck_image
+        self.shaded_images = self._bake_light_levels()
+
+        if hasattr(self.game, 'sound'):
+            self.game.sound.play_barrel_explode()
+
+        if hasattr(self.game, 'particle_manager'):
+            self.game.particle_manager.emit_explosion(self.x, self.y, z=0.4, count=40)
+
+        blast_radius = 2.8
+
+        # 1. Damage nearby enemies
+        if hasattr(self.game, 'enemy_manager'):
+            for enemy in self.game.enemy_manager.enemies:
+                if enemy.alive:
+                    dist = math.hypot(enemy.x - self.x, enemy.y - self.y)
+                    if dist < blast_radius:
+                        dmg = int((1.0 - dist / blast_radius) * 115)
+                        enemy.take_damage(max(15, dmg))
+                        if hasattr(self.game, 'particle_manager'):
+                            self.game.particle_manager.emit_blood(enemy.x, enemy.y, 0.5, count=10)
+
+        # 2. Damage player if in blast radius
+        if hasattr(self.game, 'player') and self.game.player.alive:
+            p_dist = math.hypot(self.game.player.x - self.x, self.game.player.y - self.y)
+            if p_dist < blast_radius:
+                p_dmg = int((1.0 - p_dist / blast_radius) * 45)
+                self.game.player.take_damage(max(8, p_dmg))
+
+        # 3. Chain reaction to other nearby barrels
+        if hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                if isinstance(sp, ExplosiveBarrel) and sp is not self and not sp.is_exploded and not sp.is_exploding:
+                    b_dist = math.hypot(sp.x - self.x, sp.y - self.y)
+                    if b_dist < blast_radius:
+                        sp.trigger_explosion(delay_ms=90.0)
+
+
 class SpriteManager:
     """Manages all 2.5D billboard sprites and renders them with span-based Z-buffer occlusion."""
     def __init__(self, game):
@@ -325,10 +414,10 @@ class SpriteManager:
     def setup_map_props(self):
         """Place props around the game labyrinth."""
         self.sprite_list = [
-            SpriteObject(self.game, "barrel", (3.5, 1.5), scale=0.7, shift=0.25),
-            SpriteObject(self.game, "barrel", (4.5, 1.5), scale=0.7, shift=0.25),
-            SpriteObject(self.game, "barrel", (9.5, 5.5), scale=0.7, shift=0.25),
-            SpriteObject(self.game, "barrel", (13.5, 13.5), scale=0.7, shift=0.25),
+            ExplosiveBarrel(self.game, (3.5, 1.5)),
+            ExplosiveBarrel(self.game, (4.5, 1.5)),
+            ExplosiveBarrel(self.game, (9.5, 5.5)),
+            ExplosiveBarrel(self.game, (13.5, 13.5)),
             SpriteObject(self.game, "pillar", (7.5, 1.5), scale=0.9, shift=0.15),
             SpriteObject(self.game, "pillar", (1.5, 7.5), scale=0.9, shift=0.15),
             SpriteObject(self.game, "pillar", (13.5, 5.5), scale=0.9, shift=0.15),

@@ -145,6 +145,19 @@ def synthesize_fireball_launch() -> np.ndarray:
     return np.tanh(raw * 2.2)
 
 
+def synthesize_barrel_explode() -> np.ndarray:
+    """Heavy booming retro barrel detonation with rumble and noise."""
+    duration = 0.65
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    sub = np.sin(2 * np.pi * (90 * np.exp(-t * 5) + 30) * t)
+    noise = np.random.uniform(-1.0, 1.0, total_samples)
+    env = np.exp(-t * 4.5)
+    env[:int(0.005 * SAMPLE_RATE)] = np.linspace(0, 1, int(0.005 * SAMPLE_RATE))
+    raw = (sub * 0.45 + noise * 0.55) * env
+    return np.tanh(raw * 3.0)
+
+
 def synthesize_medkit_pickup() -> np.ndarray:
     """Bright positive retro healing pickup sound (two-tone arpeggio)."""
     duration = 0.28
@@ -277,6 +290,13 @@ class SoundManager:
         self.sounds["medkit"] = pygame.mixer.Sound(medkit_file)
         self.sounds["medkit"].set_volume(0.35)
 
+        # 9. Barrel explosion sound
+        barrel_file = self._find_audio_file("barrel_explode")
+        if not barrel_file:
+            barrel_file = save_wav("barrel_explode.wav", synthesize_barrel_explode())
+        self.sounds["barrel_explode"] = pygame.mixer.Sound(barrel_file)
+        self.sounds["barrel_explode"].set_volume(0.60)
+
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
@@ -316,3 +336,7 @@ class SoundManager:
     def play_medkit(self):
         if self.enabled and "medkit" in self.sounds:
             self.sounds["medkit"].play()
+
+    def play_barrel_explode(self):
+        if self.enabled and "barrel_explode" in self.sounds:
+            self.sounds["barrel_explode"].play()

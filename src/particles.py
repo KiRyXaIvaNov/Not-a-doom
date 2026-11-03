@@ -77,6 +77,27 @@ class ParticleManager:
             life = random.uniform(800, 1600)
             self.particles.append(Particle(x, y, z, vx, vy, vz, color, rad, life, is_blood=True))
 
+    def emit_explosion(self, x: float, y: float, z: float = 0.4, count: int = 40):
+        """Spawn bright expanding fireball explosion with smoke and hot sparks."""
+        fire_colors = [
+            (255, 255, 210),  # White-hot center
+            (255, 220, 60),   # Bright yellow
+            (255, 140, 20),   # Orange flame
+            (230, 60, 15),    # Deep red flame
+            (140, 45, 30),    # Burnt red
+            (70, 70, 75),     # Smoke
+        ]
+        for _ in range(count):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(0.002, 0.009)
+            vx = math.cos(ang) * spd
+            vy = math.sin(ang) * spd
+            vz = random.uniform(-0.001, 0.007)
+            color = random.choice(fire_colors)
+            rad = random.randint(3, 7)
+            life = random.uniform(250, 650)
+            self.particles.append(Particle(x, y, z, vx, vy, vz, color, rad, life, is_blood=False))
+
     def emit_sparks(self, x: float, y: float, z: float = 0.5, count: int = 6):
         """Spawn bright wall ricochet sparks."""
         spark_colors = [
