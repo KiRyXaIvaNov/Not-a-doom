@@ -15,6 +15,7 @@ from src.player import Player
 from src.textures import TextureManager
 from src.raycasting import RayCasting
 from src.sprite_object import SpriteManager
+from src.enemy import EnemyManager
 from src.renderer import Renderer
 from src.weapon import Weapon
 
@@ -45,6 +46,7 @@ class Game:
         self.player = Player(self)
         self.textures = TextureManager()
         self.raycasting = RayCasting(self)
+        self.enemy_manager = EnemyManager(self)
         self.sprite_manager = SpriteManager(self)
         self.weapon = Weapon(self)
         self.renderer = Renderer(self)
@@ -53,6 +55,7 @@ class Game:
         self.delta_time = self.clock.tick(FPS)
         self.player.update()
         if self.mouse_grabbed:
+            self.enemy_manager.update()
             self.raycasting.update()
             self.weapon.update()
 
