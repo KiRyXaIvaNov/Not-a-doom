@@ -23,6 +23,7 @@ RES = WIDTH, HEIGHT = 1280, 720
 HALF_WIDTH = WIDTH // 2
 HALF_HEIGHT = HEIGHT // 2
 FPS = 60
+HUD_HEIGHT = 88
 
 # Player settings
 PLAYER_POS = 1.5, 1.5  # Starting position on the corridor (open space)
