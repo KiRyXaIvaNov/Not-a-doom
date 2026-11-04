@@ -1,4 +1,4 @@
-from src.core.settings import ASSETS_SOUND_DIR
+from src.core.settings import ASSETS_SOUND_DIR, BASE_DIR
 """
 Sound system and audio manager for Not-a-Doom.
 Loads external sound files (MP3, WAV, OGG) from assets/sound/
@@ -225,11 +225,13 @@ class SoundManager:
             self._init_sounds()
 
     def _find_audio_file(self, base_name: str):
-        """Check for existing MP3, WAV or OGG files."""
-        for ext in [".mp3", ".wav", ".ogg"]:
-            path = os.path.join(ASSETS_SOUND_DIR, base_name + ext)
-            if os.path.exists(path):
-                return path
+        """Check for existing MP3, WAV or OGG files in assets/sound/ or project root."""
+        search_dirs = [ASSETS_SOUND_DIR, BASE_DIR]
+        for sdir in search_dirs:
+            for ext in [".mp3", ".wav", ".ogg"]:
+                path = os.path.join(sdir, base_name + ext)
+                if os.path.exists(path):
+                    return path
         return None
 
     def _init_sounds(self):
@@ -254,12 +256,16 @@ class SoundManager:
         self.sounds["pump"] = pygame.mixer.Sound(pump_file)
         self.sounds["pump"].set_volume(0.75)
 
-        # 2b. Classic pistol shot
-        pistol_file = self._find_audio_file("pistol_shot")
-        if not pistol_file:
-            pistol_file = save_wav("pistol_shot.wav", synthesize_pistol_shot())
-        self.sounds["pistol_shot"] = pygame.mixer.Sound(pistol_file)
-        self.sounds["pistol_shot"].set_volume(0.65)
+        # 2b. Classic pistol shot: prioritize user's pistol_sound.mp3
+        user_pistol = self._find_audio_file("pistol_sound")
+        if user_pistol:
+            self.sounds["pistol_shot"] = pygame.mixer.Sound(user_pistol)
+        else:
+            pistol_file = self._find_audio_file("pistol_shot")
+            if not pistol_file:
+                pistol_file = save_wav("pistol_shot.wav", synthesize_pistol_shot())
+            self.sounds["pistol_shot"] = pygame.mixer.Sound(pistol_file)
+        self.sounds["pistol_shot"].set_volume(0.85)
 
         # 3. Soft muffled footstep (calm, low volume)
         step_file = self._find_audio_file("footstep")
