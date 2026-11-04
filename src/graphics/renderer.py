@@ -190,6 +190,28 @@ class Renderer:
         # Border
         pygame.draw.rect(self.screen, (100, 100, 120), (bar_x, bar_y, bar_w, bar_h), 1)
 
+        # Weapon Inventory HUD at bottom-right
+        if hasattr(self.game, 'weapon'):
+            active_slot = getattr(self.game.weapon, 'slot', 2)
+            w_panel_w, w_panel_h = 246, 38
+            w_x = WIDTH - w_panel_w - 16
+            w_y = HEIGHT - w_panel_h - 16
+            w_surf = pygame.Surface((w_panel_w, w_panel_h), pygame.SRCALPHA)
+            w_surf.fill((14, 14, 20, 210))
+            self.screen.blit(w_surf, (w_x, w_y))
+            pygame.draw.rect(self.screen, (100, 100, 120), (w_x, w_y, w_panel_w, w_panel_h), 1)
+
+            p_col = (255, 215, 0) if active_slot == 1 else (130, 135, 145)
+            p_txt = self.font_small.render("[1] PISTOL", True, p_col)
+            self.screen.blit(p_txt, (w_x + 14, w_y + 9))
+
+            sep_txt = self.font_small.render("|", True, (80, 85, 95))
+            self.screen.blit(sep_txt, (w_x + 118, w_y + 9))
+
+            s_col = (255, 215, 0) if active_slot == 2 else (130, 135, 145)
+            s_txt = self.font_small.render("[2] SHOTGUN", True, s_col)
+            self.screen.blit(s_txt, (w_x + 132, w_y + 9))
+
     def draw_death_screen(self):
         """Show dramatic retro Game Over overlay when player dies."""
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -239,15 +261,17 @@ class Renderer:
 
         title = self.font_large.render("PAUSED", True, (255, 215, 0))
         sub1 = self.font_small.render("Press ESC or Click to Resume", True, (240, 240, 240))
+        sub_wpn = self.font_small.render("1: Pistol | 2: Shotgun | Q / Wheel: Switch Weapon", True, (255, 215, 80))
         sub2 = self.font_small.render("Press F2 for Level Editor", True, (255, 200, 50))
         sub3 = self.font_small.render("Press F11 for Fullscreen", True, (0, 220, 255))
         sub4 = self.font_small.render("Press Q to Quit", True, (200, 200, 200))
 
-        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 65)))
-        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 5)))
-        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 25)))
-        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 55)))
-        self.screen.blit(sub4, sub4.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 85)))
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 80)))
+        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 25)))
+        self.screen.blit(sub_wpn, sub_wpn.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 5)))
+        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 35)))
+        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 65)))
+        self.screen.blit(sub4, sub4.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 95)))
 
     def draw(self):
         self.draw_background()

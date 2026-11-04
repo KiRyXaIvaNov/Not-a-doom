@@ -1,4 +1,4 @@
-from src.core.settings import ASSETS_SOUND_DIR
+from src.core.settings import ASSETS_SOUND_DIR, BASE_DIR
 """
 Sound system and audio manager for Not-a-Doom.
 Loads external sound files (MP3, WAV, OGG) from assets/sound/
@@ -62,6 +62,23 @@ def synthesize_shotgun_pump() -> np.ndarray:
     add_click(start_time=0.03, freq1=1900, freq2=850, decay=75, vol=0.8)
     add_click(start_time=0.18, freq1=1400, freq2=550, decay=60, vol=0.95)
     return np.tanh(samples * 1.8)
+
+
+def synthesize_pistol_shot() -> np.ndarray:
+    """Procedural retro DOOM pistol gunshot sound."""
+    duration = 0.30
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    noise = np.random.uniform(-1.0, 1.0, total_samples)
+    noise_env = np.exp(-t * 45)
+    freq = 420 * np.exp(-t * 28) + 75
+    pop = np.sin(2 * np.pi * freq * t)
+    ring = np.sin(2 * np.pi * 950 * t) * np.exp(-t * 32) * 0.25
+    env = np.exp(-t * 14)
+    attack_samples = int(0.002 * SAMPLE_RATE)
+    env[:attack_samples] = np.linspace(0.1, 1.0, attack_samples)
+    raw = (noise * 0.7 * noise_env + pop * 0.85 + ring) * env
+    return np.tanh(raw * 2.2)
 
 
 def synthesize_footstep() -> np.ndarray:
@@ -208,11 +225,13 @@ class SoundManager:
             self._init_sounds()
 
     def _find_audio_file(self, base_name: str):
-        """Check for existing MP3, WAV or OGG files."""
-        for ext in [".mp3", ".wav", ".ogg"]:
-            path = os.path.join(ASSETS_SOUND_DIR, base_name + ext)
-            if os.path.exists(path):
-                return path
+        """Check for existing MP3, WAV or OGG files in assets/sound/ or project root."""
+        search_dirs = [ASSETS_SOUND_DIR, BASE_DIR]
+        for sdir in search_dirs:
+            for ext in [".mp3", ".wav", ".ogg"]:
+                path = os.path.join(sdir, base_name + ext)
+                if os.path.exists(path):
+                    return path
         return None
 
     def _init_sounds(self):
@@ -236,6 +255,17 @@ class SoundManager:
             pump_file = save_wav("shotgun_pump.wav", synthesize_shotgun_pump())
         self.sounds["pump"] = pygame.mixer.Sound(pump_file)
         self.sounds["pump"].set_volume(0.75)
+
+        # 2b. Classic pistol shot: prioritize user's pistol_sound.mp3
+        user_pistol = self._find_audio_file("pistol_sound")
+        if user_pistol:
+            self.sounds["pistol_shot"] = pygame.mixer.Sound(user_pistol)
+        else:
+            pistol_file = self._find_audio_file("pistol_shot")
+            if not pistol_file:
+                pistol_file = save_wav("pistol_shot.wav", synthesize_pistol_shot())
+            self.sounds["pistol_shot"] = pygame.mixer.Sound(pistol_file)
+        self.sounds["pistol_shot"].set_volume(0.85)
 
         # 3. Soft muffled footstep (calm, low volume)
         step_file = self._find_audio_file("footstep")
@@ -301,6 +331,10 @@ class SoundManager:
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
+
+    def play_pistol_shot(self):
+        if self.enabled and "pistol_shot" in self.sounds:
+            self.sounds["pistol_shot"].play()
 
     def play_pump(self):
         if self.enabled and not self.has_integrated_pump and "pump" in self.sounds:

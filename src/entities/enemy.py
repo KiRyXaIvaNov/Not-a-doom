@@ -529,25 +529,25 @@ class EnemyManager:
                 if dist < radius:
                     enemy.trigger_chase()
 
-    def process_shot(self, player):
+    def process_shot(self, player, weapon=None):
         """
-        Hitscan raycast shotgun blast:
-        Fires buckshot pellets with a spread cone up to SHOTGUN_MAX_RANGE (3.0 blocks).
+        Hitscan raycast weapon blast (Shotgun or Pistol):
+        Fires pellets/bullets with a spread cone up to weapon.max_range.
         Checks wall occlusion, explosive barrels, and enemy hit radius.
-        Applies distance-based damage falloff:
-          - Point-blank: deals full maximum damage (100%).
-          - At maximum range (3.0 blocks): deals 30% of maximum damage.
-          - Beyond 3.0 blocks: pellets dissipate in air, dealing 0 damage.
+        Applies distance-based damage falloff if configured on weapon.
         Emits blood splatters, wall sparks (within range), and alerts nearby enemies.
         """
         # Gunshot sound alerts nearby demons
         self.alert_all_by_noise(player.pos)
 
-        weapon = getattr(self.game, "weapon", None)
+        if weapon is None:
+            weapon = getattr(self.game, "weapon", None)
         num_pellets = getattr(weapon, "num_pellets", SHOTGUN_PELLETS)
         spread = getattr(weapon, "spread", SHOTGUN_SPREAD)
         max_range = getattr(weapon, "max_range", SHOTGUN_MAX_RANGE)
         min_damage_ratio = getattr(weapon, "min_damage_ratio", SHOTGUN_MIN_DAMAGE_RATIO)
+        min_dmg = getattr(weapon, "min_damage", 12)
+        max_dmg = getattr(weapon, "max_damage", 18)
         hits: dict[Enemy, int] = {}
         barrel_hits: dict[object, int] = {}
 
@@ -615,7 +615,7 @@ class EnemyManager:
             damage_factor = 1.0 - (1.0 - min_damage_ratio) * norm_dist
             damage_factor = max(min_damage_ratio, min(1.0, damage_factor))
 
-            base_dmg = sum(random.randint(12, 18) for _ in range(count))
+            base_dmg = sum(random.randint(min_dmg, max_dmg) for _ in range(count))
             dmg = max(1, int(round(base_dmg * damage_factor)))
             enemy.take_damage(dmg)
             if hasattr(self.game, "particle_manager"):
@@ -628,7 +628,9 @@ class EnemyManager:
             damage_factor = 1.0 - (1.0 - min_damage_ratio) * norm_dist
             damage_factor = max(min_damage_ratio, min(1.0, damage_factor))
 
-            base_dmg = sum(random.randint(15, 25) for _ in range(count))
+            b_min = max(15, int(min_dmg * 1.25))
+            b_max = max(25, int(max_dmg * 1.4))
+            base_dmg = sum(random.randint(b_min, b_max) for _ in range(count))
             dmg = max(1, int(round(base_dmg * damage_factor)))
             barrel.take_damage(dmg)
             if hasattr(self.game, "particle_manager"):

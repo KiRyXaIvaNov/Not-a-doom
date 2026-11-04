@@ -61,7 +61,18 @@ GREEN = (0, 200, 0)
 DARK_GRAY = (40, 40, 40)
 
 # Weapon & Combat Settings
+# Shotgun (Super Shotgun)
 SHOTGUN_MAX_RANGE = 3.0            # Maximum effective range in grid blocks (pellets dissipate beyond this)
 SHOTGUN_MIN_DAMAGE_RATIO = 0.30    # Damage ratio at maximum range (30% of max damage)
 SHOTGUN_PELLETS = 12               # Number of pellets per blast
 SHOTGUN_SPREAD = 0.045             # Spread angle in radians
+SHOTGUN_MIN_DAMAGE = 12            # Min damage per pellet
+SHOTGUN_MAX_DAMAGE = 18            # Max damage per pellet
+
+# Pistol (Classic DOOM Handgun)
+PISTOL_MAX_RANGE = 30.0            # High hitscan range across the map
+PISTOL_MIN_DAMAGE_RATIO = 1.0       # Accurate handgun maintains full damage (no distance falloff)
+PISTOL_PELLETS = 1                 # 1 precise bullet per shot
+PISTOL_SPREAD = 0.008              # Tight pinpoint spread
+PISTOL_MIN_DAMAGE = 22             # Min bullet damage (~4-5 shots to kill Cacodemon)
+PISTOL_MAX_DAMAGE = 30             # Max bullet damage
