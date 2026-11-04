@@ -239,13 +239,15 @@ class Renderer:
 
         title = self.font_large.render("PAUSED", True, (255, 215, 0))
         sub1 = self.font_small.render("Press ESC or Click to Resume", True, (240, 240, 240))
-        sub2 = self.font_small.render("Press F11 for Fullscreen", True, (0, 220, 255))
-        sub3 = self.font_small.render("Press Q to Quit", True, (200, 200, 200))
+        sub2 = self.font_small.render("Press F2 for Level Editor", True, (255, 200, 50))
+        sub3 = self.font_small.render("Press F11 for Fullscreen", True, (0, 220, 255))
+        sub4 = self.font_small.render("Press Q to Quit", True, (200, 200, 200))
 
-        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 50)))
-        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 10)))
-        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 40)))
-        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 70)))
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 65)))
+        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 5)))
+        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 25)))
+        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 55)))
+        self.screen.blit(sub4, sub4.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 85)))
 
     def draw(self):
         self.draw_background()

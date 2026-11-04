@@ -7,6 +7,8 @@ import math
 # Project Directory & Asset Paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+ASSETS_MAPS_DIR = os.path.join(ASSETS_DIR, "maps")
+DEFAULT_MAP_PATH = os.path.join(ASSETS_MAPS_DIR, "level1.json")
 ASSETS_SOUND_DIR = os.path.join(ASSETS_DIR, "sound")
 ASSETS_TEXTURES_DIR = os.path.join(ASSETS_DIR, "textures")
 ASSETS_SPRITES_DIR = os.path.join(ASSETS_DIR, "sprites")

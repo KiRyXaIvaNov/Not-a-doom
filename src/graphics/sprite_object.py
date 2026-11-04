@@ -413,20 +413,34 @@ class SpriteManager:
                 sprite.update()
 
     def setup_map_props(self):
-        """Place props around the game labyrinth."""
-        self.sprite_list = [
-            ExplosiveBarrel(self.game, (3.5, 1.5)),
-            ExplosiveBarrel(self.game, (4.5, 1.5)),
-            ExplosiveBarrel(self.game, (9.5, 5.5)),
-            ExplosiveBarrel(self.game, (13.5, 13.5)),
-            SpriteObject(self.game, "pillar", (7.5, 1.5), scale=0.9, shift=0.15),
-            SpriteObject(self.game, "pillar", (1.5, 7.5), scale=0.9, shift=0.15),
-            SpriteObject(self.game, "pillar", (13.5, 5.5), scale=0.9, shift=0.15),
-            MedkitObject(self.game, (1.5, 3.5), heal_amount=25),
-            MedkitObject(self.game, (5.5, 5.5), heal_amount=25),
-            MedkitObject(self.game, (11.5, 1.5), heal_amount=25),
-            PortalObject(self.game, (14.5, 14.5), scale=0.95, shift=0.12),
-        ]
+        """Place props around the game labyrinth according to map configuration."""
+        self.sprite_list = []
+
+        # Barrels
+        barrel_coords = getattr(self.game.map, "barrels", None)
+        if barrel_coords is None:
+            barrel_coords = [(3.5, 1.5), (4.5, 1.5), (9.5, 5.5), (13.5, 13.5)]
+        for pos in barrel_coords:
+            self.sprite_list.append(ExplosiveBarrel(self.game, (pos[0], pos[1])))
+
+        # Pillars
+        pillar_coords = getattr(self.game.map, "pillars", None)
+        if pillar_coords is None:
+            pillar_coords = [(7.5, 1.5), (1.5, 7.5), (13.5, 5.5)]
+        for pos in pillar_coords:
+            self.sprite_list.append(SpriteObject(self.game, "pillar", (pos[0], pos[1]), scale=0.9, shift=0.15))
+
+        # Medkits
+        medkit_coords = getattr(self.game.map, "medkits", None)
+        if medkit_coords is None:
+            medkit_coords = [(1.5, 3.5), (5.5, 5.5), (11.5, 1.5)]
+        for pos in medkit_coords:
+            self.sprite_list.append(MedkitObject(self.game, (pos[0], pos[1]), heal_amount=25))
+
+        # Portal
+        portal_coord = getattr(self.game.map, "portal", (14.5, 14.5))
+        if portal_coord:
+            self.sprite_list.append(PortalObject(self.game, (portal_coord[0], portal_coord[1]), scale=0.95, shift=0.12))
 
     def render(self, screen: pygame.Surface):
         """Sort sprites by distance and draw contiguous spans that pass the Z-buffer depth test."""

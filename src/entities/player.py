@@ -18,7 +18,8 @@ from src.core.settings import (
 class Player:
     def __init__(self, game):
         self.game = game
-        self.x, self.y = PLAYER_POS
+        spawn = getattr(self.game.map, 'player_spawn', PLAYER_POS)
+        self.x, self.y = spawn[0], spawn[1]
         self.angle = PLAYER_ANGLE
         self.collision_margin = 0.25
         self.step_timer = 0
@@ -29,6 +30,17 @@ class Player:
         self.alive = True
         self.damage_alpha = 0.0
         self.heal_alpha = 0.0
+
+    def reset_to_spawn(self):
+        """Reset player to the map spawn location, full HP, alive state, and zero overlays."""
+        spawn = getattr(self.game.map, 'player_spawn', PLAYER_POS)
+        self.x, self.y = spawn[0], spawn[1]
+        self.angle = PLAYER_ANGLE
+        self.hp = self.max_hp
+        self.alive = True
+        self.damage_alpha = 0.0
+        self.heal_alpha = 0.0
+        self.step_timer = 0
 
     def take_damage(self, amount: int):
         """Apply damage, trigger pain audio and screen flash."""
@@ -59,64 +71,63 @@ class Player:
         keys = pygame.key.get_pressed()
         scancodes = self.game.pressed_scancodes
 
-        def pressed(keycode, scancode):
-            return (keycode < len(keys) and keys[keycode]) or (scancode in scancodes)
+        # Forward / Backward
+        if (
+            keys[pygame.K_w]
+            or keys[pygame.K_UP]
+            or pygame.KSCAN_W in scancodes
+            or pygame.KSCAN_UP in scancodes
+        ):
+            dx += speed * cos_a
+            dy += speed * sin_a
+        if (
+            keys[pygame.K_s]
+            or keys[pygame.K_DOWN]
+            or pygame.KSCAN_S in scancodes
+            or pygame.KSCAN_DOWN in scancodes
+        ):
+            dx -= speed * cos_a
+            dy -= speed * sin_a
 
-        # Forward / Backward (W, Up arrow, S, Down arrow)
-        if pressed(pygame.K_w, pygame.KSCAN_W) or pressed(pygame.K_UP, pygame.KSCAN_UP):
-            dx += cos_a
-            dy += sin_a
-        if pressed(pygame.K_s, pygame.KSCAN_S) or pressed(pygame.K_DOWN, pygame.KSCAN_DOWN):
-            dx += -cos_a
-            dy += -sin_a
+        # Strafe Left / Right
+        if keys[pygame.K_a] or pygame.KSCAN_A in scancodes:
+            dx += speed * sin_a
+            dy -= speed * cos_a
+        if keys[pygame.K_d] or pygame.KSCAN_D in scancodes:
+            dx -= speed * sin_a
+            dy += speed * cos_a
 
-        # Strafe Left / Right (A, D)
-        if pressed(pygame.K_a, pygame.KSCAN_A):
-            dx += sin_a
-            dy += -cos_a
-        if pressed(pygame.K_d, pygame.KSCAN_D):
-            dx += -sin_a
-            dy += cos_a
-
-        # Normalize movement vector to eliminate diagonal speed boost
-        if dx != 0.0 or dy != 0.0:
-            length = math.hypot(dx, dy)
-            dx = (dx / length) * speed
-            dy = (dy / length) * speed
-
-        # Check collision with wall sliding
-        self.check_wall_collision(dx, dy)
-
-        # Soft rhythmic footstep audio when walking
-        if (dx != 0.0 or dy != 0.0) and hasattr(self.game, "sound"):
-            self.step_timer += self.game.delta_time
-            if self.step_timer >= 440:
-                self.step_timer = 0
-                self.game.sound.play_step()
-        else:
-            self.step_timer = 380
-
-        # Arrow keys rotation (Left / Right) with responsive rot speed
-        if pressed(pygame.K_LEFT, pygame.KSCAN_LEFT):
+        # Keyboard turning (Left / Right arrow keys)
+        if keys[pygame.K_LEFT] or pygame.KSCAN_LEFT in scancodes:
             self.angle -= PLAYER_ROT_SPEED * self.game.delta_time
-        if pressed(pygame.K_RIGHT, pygame.KSCAN_RIGHT):
+        if keys[pygame.K_RIGHT] or pygame.KSCAN_RIGHT in scancodes:
             self.angle += PLAYER_ROT_SPEED * self.game.delta_time
 
-        # Keep angle in [0, 2*pi]
+        # Wrap angle around tau
         self.angle %= math.tau
 
-    def check_wall(self, x: float, y: float) -> bool:
-        """Check if grid cell at (x, y) is a solid wall."""
-        return self.game.map.is_wall(int(x), int(y))
+        # Apply displacement with collision sliding
+        moved = (dx != 0.0 or dy != 0.0)
+        self.check_wall_collision(dx, dy)
+
+        # Footstep audio triggering
+        if moved and self.game.mouse_grabbed:
+            self.step_timer += self.game.delta_time
+            if self.step_timer > 380:
+                self.step_timer = 0
+                if hasattr(self.game, 'sound'):
+                    self.game.sound.play_footstep()
+        else:
+            self.step_timer = 200
 
     def is_colliding(self, x: float, y: float) -> bool:
-        """Check if player bounding box intersects any solid wall."""
-        m = self.collision_margin
+        """Check if bounding box around position collides with any solid walls."""
+        margin = self.collision_margin
         return (
-            self.check_wall(x - m, y - m)
-            or self.check_wall(x + m, y - m)
-            or self.check_wall(x - m, y + m)
-            or self.check_wall(x + m, y + m)
+            self.game.map.is_wall(int(x - margin), int(y - margin))
+            or self.game.map.is_wall(int(x + margin), int(y - margin))
+            or self.game.map.is_wall(int(x - margin), int(y + margin))
+            or self.game.map.is_wall(int(x + margin), int(y + margin))
         )
 
     def check_wall_collision(self, dx: float, dy: float):
