@@ -116,7 +116,7 @@ class Player:
             if self.step_timer > 380:
                 self.step_timer = 0
                 if hasattr(self.game, 'sound'):
-                    self.game.sound.play_footstep()
+                    self.game.sound.play_step()
         else:
             self.step_timer = 200
 
