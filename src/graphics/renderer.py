@@ -15,7 +15,9 @@ from src.core.settings import (
     WHITE,
     RED,
     GREEN,
+    HUD_HEIGHT,
 )
+from src.graphics.face import DoomFace
 
 
 class Renderer:
@@ -26,6 +28,13 @@ class Renderer:
         self.sky_offset = 0
         self.font_large = pygame.font.SysFont("impact", 48)
         self.font_small = pygame.font.SysFont("arial", 20, bold=True)
+        self.font_hud_big = pygame.font.SysFont("impact", 42)
+        self.font_hud_label = pygame.font.SysFont("arial", 13, bold=True)
+        self.font_hud_arms = pygame.font.SysFont("impact", 32)
+        self.font_hud_ammo = pygame.font.SysFont("consolas", 14, bold=True)
+
+        self.doom_face = DoomFace(game)
+        self.hud_bg = self._create_hud_background()
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
@@ -158,59 +167,138 @@ class Renderer:
             flash_surf.fill((40, 220, 90, alpha))
             self.screen.blit(flash_surf, (0, 0))
 
+    def _create_hud_background(self) -> pygame.Surface:
+        """Pre-bake metallic stone status bar base texture and beveled inset frames."""
+        surf = pygame.Surface((WIDTH, HUD_HEIGHT))
+        surf.fill((52, 54, 58))
+
+        # 3D Top bevel
+        pygame.draw.line(surf, (125, 130, 140), (0, 0), (WIDTH, 0), 2)
+        pygame.draw.line(surf, (85, 90, 98), (0, 2), (WIDTH, 2), 1)
+        pygame.draw.line(surf, (38, 40, 44), (0, 3), (WIDTH, 3), 1)
+        pygame.draw.line(surf, (18, 18, 20), (0, HUD_HEIGHT - 1), (WIDTH, HUD_HEIGHT - 1), 1)
+
+        def draw_inset_box(rect, bg_col=(18, 18, 22)):
+            x, y, w, h = rect
+            pygame.draw.rect(surf, bg_col, rect)
+            pygame.draw.line(surf, (12, 12, 15), (x, y), (x + w - 1, y), 2)
+            pygame.draw.line(surf, (12, 12, 15), (x, y), (x, y + h - 1), 2)
+            pygame.draw.line(surf, (85, 90, 100), (x, y + h - 1), (x + w - 1, y + h - 1), 1)
+            pygame.draw.line(surf, (85, 90, 100), (x + w - 1, y), (x + w - 1, y + h - 1), 1)
+
+        def draw_divider(x):
+            pygame.draw.line(surf, (22, 23, 26), (x, 0), (x, HUD_HEIGHT), 2)
+            pygame.draw.line(surf, (90, 95, 105), (x + 2, 0), (x + 2, HUD_HEIGHT), 1)
+
+        # Dividers
+        draw_divider(180)
+        draw_divider(420)
+        draw_divider(576)
+        draw_divider(702)
+        draw_divider(942)
+
+        # Inset boxes for content
+        draw_inset_box((14, 10, 152, 50))    # AMMO
+        draw_inset_box((194, 10, 212, 50))   # HEALTH
+        draw_inset_box((434, 10, 130, 50))   # ARMS
+        draw_inset_box((596, 6, 88, 76), bg_col=(14, 14, 18))  # FACE
+        draw_inset_box((716, 10, 212, 50))   # ARMOR
+        draw_inset_box((954, 8, 314, 72))    # AMMO TABLE
+
+        # Static section labels
+        lbl_ammo = self.font_hud_label.render("AMMO", True, (160, 165, 175))
+        surf.blit(lbl_ammo, lbl_ammo.get_rect(center=(90, 72)))
+
+        lbl_health = self.font_hud_label.render("HEALTH", True, (160, 165, 175))
+        surf.blit(lbl_health, lbl_health.get_rect(center=(300, 72)))
+
+        lbl_arms = self.font_hud_label.render("ARMS", True, (160, 165, 175))
+        surf.blit(lbl_arms, lbl_arms.get_rect(center=(499, 72)))
+
+        lbl_armor = self.font_hud_label.render("ARMOR", True, (160, 165, 175))
+        surf.blit(lbl_armor, lbl_armor.get_rect(center=(822, 72)))
+
+        return surf
+
     def draw_hud(self):
-        """Draw player health bar and numerical status at top-left."""
-        if not hasattr(self.game, 'player'):
-            return
-        hp = self.game.player.hp
-        max_hp = self.game.player.max_hp
+        """Draw authentic classic DOOM bottom status bar strip across full screen width."""
+        hud_y = HEIGHT - HUD_HEIGHT
+        self.screen.blit(self.hud_bg, (0, hud_y))
 
-        # HUD Panel background
-        panel_w, panel_h = 220, 52
-        panel_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-        panel_surf.fill((14, 14, 20, 210))
-        self.screen.blit(panel_surf, (16, 16))
+        # Update animated face
+        self.doom_face.update()
 
-        # Health Text
-        text_col = (50, 220, 80) if hp > 50 else (240, 200, 40) if hp > 25 else (240, 50, 50)
-        hp_text = self.font_small.render(f"HEALTH: {hp}%", True, text_col)
-        self.screen.blit(hp_text, (26, 20))
+        player = getattr(self.game, 'player', None)
+        hp = player.hp if player else 100
+        weapon = getattr(self.game, 'weapon', None)
+        active_slot = getattr(weapon, 'slot', 1)
 
-        # Health bar background
-        bar_x, bar_y = 26, 44
-        bar_w, bar_h = 196, 14
-        pygame.draw.rect(self.screen, (40, 40, 48), (bar_x, bar_y, bar_w, bar_h))
+        # 1. AMMO: active weapon ammo placeholder (e.g. 50 for pistol, 16 for shotgun)
+        ammo_count = 50 if active_slot == 1 else 16
+        ammo_str = str(ammo_count)
+        txt_sh = self.font_hud_big.render(ammo_str, True, (80, 8, 8))
+        txt = self.font_hud_big.render(ammo_str, True, (225, 20, 20))
+        self.screen.blit(txt_sh, txt_sh.get_rect(center=(90 + 2, hud_y + 35 + 2)))
+        self.screen.blit(txt, txt.get_rect(center=(90, hud_y + 35)))
 
-        # Health bar fill
-        fill_w = int((hp / max_hp) * bar_w)
-        if fill_w > 0:
-            bar_col = (40, 200, 60) if hp > 50 else (230, 180, 40) if hp > 25 else (220, 30, 30)
-            pygame.draw.rect(self.screen, bar_col, (bar_x, bar_y, fill_w, bar_h))
+        # 2. HEALTH: actual player health percentage
+        hp_str = f"{max(0, hp)}%"
+        hp_col = (225, 20, 20) if hp > 25 else (255, 30, 30)
+        hp_sh = self.font_hud_big.render(hp_str, True, (80, 8, 8))
+        hp_txt = self.font_hud_big.render(hp_str, True, hp_col)
+        self.screen.blit(hp_sh, hp_sh.get_rect(center=(300 + 2, hud_y + 35 + 2)))
+        self.screen.blit(hp_txt, hp_txt.get_rect(center=(300, hud_y + 35)))
 
-        # Border
-        pygame.draw.rect(self.screen, (100, 100, 120), (bar_x, bar_y, bar_w, bar_h), 1)
+        # 3. ARMS: weapon slots as digits (1: Pistol, 2: Shotgun)
+        # Slot 1
+        s1_box = pygame.Rect(442, hud_y + 13, 52, 44)
+        s1_bg = (30, 28, 20) if active_slot == 1 else (20, 20, 22)
+        pygame.draw.rect(self.screen, s1_bg, s1_box)
+        pygame.draw.rect(self.screen, (70, 65, 50) if active_slot == 1 else (40, 40, 45), s1_box, 1)
+        s1_col = (255, 235, 40) if active_slot == 1 else (105, 95, 80)
+        s1_txt = self.font_hud_arms.render("1", True, s1_col)
+        self.screen.blit(s1_txt, s1_txt.get_rect(center=s1_box.center))
 
-        # Weapon Inventory HUD at bottom-right
-        if hasattr(self.game, 'weapon'):
-            active_slot = getattr(self.game.weapon, 'slot', 2)
-            w_panel_w, w_panel_h = 246, 38
-            w_x = WIDTH - w_panel_w - 16
-            w_y = HEIGHT - w_panel_h - 16
-            w_surf = pygame.Surface((w_panel_w, w_panel_h), pygame.SRCALPHA)
-            w_surf.fill((14, 14, 20, 210))
-            self.screen.blit(w_surf, (w_x, w_y))
-            pygame.draw.rect(self.screen, (100, 100, 120), (w_x, w_y, w_panel_w, w_panel_h), 1)
+        # Slot 2
+        s2_box = pygame.Rect(504, hud_y + 13, 52, 44)
+        s2_bg = (30, 28, 20) if active_slot == 2 else (20, 20, 22)
+        pygame.draw.rect(self.screen, s2_bg, s2_box)
+        pygame.draw.rect(self.screen, (70, 65, 50) if active_slot == 2 else (40, 40, 45), s2_box, 1)
+        s2_col = (255, 235, 40) if active_slot == 2 else (105, 95, 80)
+        s2_txt = self.font_hud_arms.render("2", True, s2_col)
+        self.screen.blit(s2_txt, s2_txt.get_rect(center=s2_box.center))
 
-            p_col = (255, 215, 0) if active_slot == 1 else (130, 135, 145)
-            p_txt = self.font_small.render("[1] PISTOL", True, p_col)
-            self.screen.blit(p_txt, (w_x + 14, w_y + 9))
+        # 4. FACE: animated Doom Marine face
+        face_surf = self.doom_face.get_surface()
+        self.screen.blit(face_surf, (608, hud_y + 8))
 
-            sep_txt = self.font_small.render("|", True, (80, 85, 95))
-            self.screen.blit(sep_txt, (w_x + 118, w_y + 9))
+        # 5. ARMOR: 100% placeholder
+        arm_str = "100%"
+        arm_sh = self.font_hud_big.render(arm_str, True, (80, 8, 8))
+        arm_txt = self.font_hud_big.render(arm_str, True, (225, 20, 20))
+        self.screen.blit(arm_sh, arm_sh.get_rect(center=(822 + 2, hud_y + 35 + 2)))
+        self.screen.blit(arm_txt, arm_txt.get_rect(center=(822, hud_y + 35)))
 
-            s_col = (255, 215, 0) if active_slot == 2 else (130, 135, 145)
-            s_txt = self.font_small.render("[2] SHOTGUN", True, s_col)
-            self.screen.blit(s_txt, (w_x + 132, w_y + 9))
+        # 6. AMMO TABLE: breakdown of ammo reserves
+        ammo_rows = [
+            ("BULL", "50", "200"),
+            ("SHEL", "16", "50"),
+            ("RCKT", "0", "50"),
+            ("CELL", "0", "300"),
+        ]
+        for idx, (lbl_txt, cur_v, max_v) in enumerate(ammo_rows):
+            ry = hud_y + 13 + idx * 17
+            t_lbl = self.font_hud_ammo.render(lbl_txt, True, (225, 195, 45))
+            self.screen.blit(t_lbl, (970, ry))
+
+            t_cur = self.font_hud_ammo.render(cur_v.rjust(3), True, (255, 240, 70))
+            self.screen.blit(t_cur, (1050, ry))
+
+            t_sl = self.font_hud_ammo.render("/", True, (140, 145, 155))
+            self.screen.blit(t_sl, (1120, ry))
+
+            t_max = self.font_hud_ammo.render(max_v.rjust(3), True, (255, 240, 70))
+            self.screen.blit(t_max, (1160, ry))
 
     def draw_death_screen(self):
         """Show dramatic retro Game Over overlay when player dies."""
