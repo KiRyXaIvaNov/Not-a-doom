@@ -5,7 +5,16 @@ Includes seamless solid-underlay rendering (no transparent gaps) and PNG asset l
 import os
 import math
 import pygame
-from src.core.settings import WIDTH, HEIGHT, HALF_WIDTH, ASSETS_WEAPON_DIR
+from src.core.settings import (
+    WIDTH,
+    HEIGHT,
+    HALF_WIDTH,
+    ASSETS_WEAPON_DIR,
+    SHOTGUN_MAX_RANGE,
+    SHOTGUN_MIN_DAMAGE_RATIO,
+    SHOTGUN_PELLETS,
+    SHOTGUN_SPREAD,
+)
 
 # ASSETS_WEAPON_DIR imported from settings
 
@@ -221,6 +230,10 @@ class Weapon:
     def __init__(self, game):
         self.game = game
         self.scale_factor = 4.8
+        self.max_range = SHOTGUN_MAX_RANGE
+        self.min_damage_ratio = SHOTGUN_MIN_DAMAGE_RATIO
+        self.num_pellets = SHOTGUN_PELLETS
+        self.spread = SHOTGUN_SPREAD
         self.raw_images = self.load_or_generate_sprites()
 
         self.scaled_images = [

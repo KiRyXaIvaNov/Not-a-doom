@@ -59,3 +59,9 @@ BLACK = (0, 0, 0)
 RED = (220, 20, 60)
 GREEN = (0, 200, 0)
 DARK_GRAY = (40, 40, 40)
+
+# Weapon & Combat Settings
+SHOTGUN_MAX_RANGE = 3.0            # Maximum effective range in grid blocks (pellets dissipate beyond this)
+SHOTGUN_MIN_DAMAGE_RATIO = 0.30    # Damage ratio at maximum range (30% of max damage)
+SHOTGUN_PELLETS = 12               # Number of pellets per blast
+SHOTGUN_SPREAD = 0.045             # Spread angle in radians
