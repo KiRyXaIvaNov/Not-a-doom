@@ -10,7 +10,9 @@ import pygame
 from src.core.settings import (
     ASSETS_ENEMY_DIR,
     WIDTH, HEIGHT, HALF_WIDTH, HALF_HEIGHT, NUM_RAYS,
-    SCALE, DELTA_ANGLE, SCREEN_DIST, MAX_DEPTH
+    SCALE, DELTA_ANGLE, SCREEN_DIST, MAX_DEPTH,
+    SHOTGUN_MAX_RANGE, SHOTGUN_MIN_DAMAGE_RATIO,
+    SHOTGUN_PELLETS, SHOTGUN_SPREAD
 )
 
 NUM_ENEMY_LIGHTS = 8
@@ -530,15 +532,22 @@ class EnemyManager:
     def process_shot(self, player):
         """
         Hitscan raycast shotgun blast:
-        Fires 12 buckshot pellets with a spread cone.
-        Checks wall occlusion and enemy hit radius.
-        Emits blood splatters, wall sparks, alerts nearby enemies, and deals distance-based damage.
+        Fires buckshot pellets with a spread cone up to SHOTGUN_MAX_RANGE (3.0 blocks).
+        Checks wall occlusion, explosive barrels, and enemy hit radius.
+        Applies distance-based damage falloff:
+          - Point-blank: deals full maximum damage (100%).
+          - At maximum range (3.0 blocks): deals 30% of maximum damage.
+          - Beyond 3.0 blocks: pellets dissipate in air, dealing 0 damage.
+        Emits blood splatters, wall sparks (within range), and alerts nearby enemies.
         """
         # Gunshot sound alerts nearby demons
         self.alert_all_by_noise(player.pos)
 
-        num_pellets = 12
-        spread = 0.045
+        weapon = getattr(self.game, "weapon", None)
+        num_pellets = getattr(weapon, "num_pellets", SHOTGUN_PELLETS)
+        spread = getattr(weapon, "spread", SHOTGUN_SPREAD)
+        max_range = getattr(weapon, "max_range", SHOTGUN_MAX_RANGE)
+        min_damage_ratio = getattr(weapon, "min_damage_ratio", SHOTGUN_MIN_DAMAGE_RATIO)
         hits: dict[Enemy, int] = {}
         barrel_hits: dict[object, int] = {}
 
@@ -552,14 +561,14 @@ class EnemyManager:
             closest_barrel = None
             closest_dist = wall_dist
 
-            # Check collision with explosive barrels
+            # Check collision with explosive barrels within max_range
             if hasattr(self.game, 'sprite_manager'):
                 for sp in self.game.sprite_manager.sprite_list:
                     if hasattr(sp, 'take_damage') and not getattr(sp, 'is_exploded', False):
                         dx = sp.x - player.x
                         dy = sp.y - player.y
                         dist = math.hypot(dx, dy)
-                        if dist >= closest_dist or dist < 0.35:
+                        if dist > max_range or dist >= closest_dist or dist < 0.35:
                             continue
                         theta = math.atan2(dy, dx)
                         diff = (theta - pellet_angle + math.pi) % math.tau - math.pi
@@ -568,7 +577,7 @@ class EnemyManager:
                             closest_barrel = sp
                             closest_enemy = None
 
-            # Check collision with alive enemies
+            # Check collision with alive enemies within max_range
             for enemy in self.enemies:
                 if not enemy.alive:
                     continue
@@ -577,7 +586,7 @@ class EnemyManager:
                 dy = enemy.y - player.y
                 dist = math.hypot(dx, dy)
 
-                if dist >= closest_dist or dist < 0.35:
+                if dist > max_range or dist >= closest_dist or dist < 0.35:
                     continue
 
                 theta = math.atan2(dy, dx)
@@ -594,19 +603,33 @@ class EnemyManager:
             elif closest_barrel is not None:
                 barrel_hits[closest_barrel] = barrel_hits.get(closest_barrel, 0) + 1
             else:
-                if hasattr(self.game, "particle_manager") and wall_dist < MAX_DEPTH:
+                # Sparks emit only if the pellet hits a wall within the maximum shotgun range
+                if hasattr(self.game, "particle_manager") and wall_dist <= max_range:
                     self.game.particle_manager.emit_sparks(hit_x, hit_y, 0.5, count=2)
 
         # Apply damage and spawn blood for each hit enemy
         for enemy, count in hits.items():
-            dmg = count * random.randint(12, 18)
+            dist = math.hypot(enemy.x - player.x, enemy.y - player.y)
+            # Distance falloff: linearly scales from 1.0 (at point-blank) down to min_damage_ratio (0.30) at max_range (3.0 blocks)
+            norm_dist = min(1.0, max(0.0, dist / max_range))
+            damage_factor = 1.0 - (1.0 - min_damage_ratio) * norm_dist
+            damage_factor = max(min_damage_ratio, min(1.0, damage_factor))
+
+            base_dmg = sum(random.randint(12, 18) for _ in range(count))
+            dmg = max(1, int(round(base_dmg * damage_factor)))
             enemy.take_damage(dmg)
             if hasattr(self.game, "particle_manager"):
                 self.game.particle_manager.emit_blood(enemy.x, enemy.y, 0.5, count=count * 3)
 
         # Apply damage to explosive barrels
         for barrel, count in barrel_hits.items():
-            dmg = count * random.randint(15, 25)
+            b_dist = math.hypot(barrel.x - player.x, barrel.y - player.y)
+            norm_dist = min(1.0, max(0.0, b_dist / max_range))
+            damage_factor = 1.0 - (1.0 - min_damage_ratio) * norm_dist
+            damage_factor = max(min_damage_ratio, min(1.0, damage_factor))
+
+            base_dmg = sum(random.randint(15, 25) for _ in range(count))
+            dmg = max(1, int(round(base_dmg * damage_factor)))
             barrel.take_damage(dmg)
             if hasattr(self.game, "particle_manager"):
                 self.game.particle_manager.emit_sparks(barrel.x, barrel.y, 0.4, count=count * 2)
