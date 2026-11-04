@@ -19,7 +19,7 @@ from src.entities.enemy import EnemyManager
 from src.combat.particles import ParticleManager
 from src.combat.projectile import ProjectileManager
 from src.graphics.renderer import Renderer
-from src.combat.weapon import Weapon
+from src.combat.weapon import Weapon, Shotgun, Pistol
 from src.core.editor import LevelEditor
 
 
@@ -99,11 +99,26 @@ class Game:
         self.projectile_manager = ProjectileManager(self)
         self.particle_manager = ParticleManager(self)
         self.sprite_manager = SpriteManager(self)
-        self.weapon = Weapon(self)
+        self.pistol = Pistol(self)
+        self.shotgun = Shotgun(self)
+        self.weapons = [self.pistol, self.shotgun]
+        self.current_weapon_idx = 1
+        self.weapon = self.weapons[self.current_weapon_idx]
         self.renderer = Renderer(self)
         self.victory = False
         self.start_ticks = pygame.time.get_ticks()
         self.elapsed_time_str = "00:00"
+
+    def select_weapon(self, index: int):
+        """Switch active weapon by inventory index (0: Pistol, 1: Shotgun)."""
+        if not (0 <= index < len(self.weapons)):
+            return
+        if self.current_weapon_idx == index:
+            return
+        self.weapon.is_firing = False
+        self.weapon.frame_index = 0
+        self.current_weapon_idx = index
+        self.weapon = self.weapons[index]
 
     def trigger_victory(self):
         """Trigger level completion victory state."""
@@ -186,15 +201,26 @@ class Game:
                     self.grab_mouse(not self.mouse_grabbed)
                 elif not self.mouse_grabbed and event.key == pygame.K_q:
                     self.running = False
+                elif self.mouse_grabbed and event.key == pygame.K_1:
+                    self.select_weapon(0)
+                elif self.mouse_grabbed and event.key == pygame.K_2:
+                    self.select_weapon(1)
+                elif self.mouse_grabbed and event.key == pygame.K_q:
+                    self.select_weapon(1 - self.current_weapon_idx)
                 elif self.mouse_grabbed and (event.key == pygame.K_SPACE or event.key == pygame.K_LCTRL):
                     self.weapon.fire()
             elif event.type == pygame.KEYUP:
                 self.pressed_scancodes.discard(event.scancode)
+            elif event.type == pygame.MOUSEWHEEL and self.mouse_grabbed:
+                if event.y != 0:
+                    self.select_weapon(1 - self.current_weapon_idx)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.mouse_grabbed and event.button == 1:
                     self.grab_mouse(True)
                 elif self.mouse_grabbed and event.button == 1:
                     self.weapon.fire()
+                elif self.mouse_grabbed and event.button in (4, 5):
+                    self.select_weapon(1 - self.current_weapon_idx)
 
     def run(self):
         while self.running:

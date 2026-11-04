@@ -64,6 +64,23 @@ def synthesize_shotgun_pump() -> np.ndarray:
     return np.tanh(samples * 1.8)
 
 
+def synthesize_pistol_shot() -> np.ndarray:
+    """Procedural retro DOOM pistol gunshot sound."""
+    duration = 0.30
+    total_samples = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    noise = np.random.uniform(-1.0, 1.0, total_samples)
+    noise_env = np.exp(-t * 45)
+    freq = 420 * np.exp(-t * 28) + 75
+    pop = np.sin(2 * np.pi * freq * t)
+    ring = np.sin(2 * np.pi * 950 * t) * np.exp(-t * 32) * 0.25
+    env = np.exp(-t * 14)
+    attack_samples = int(0.002 * SAMPLE_RATE)
+    env[:attack_samples] = np.linspace(0.1, 1.0, attack_samples)
+    raw = (noise * 0.7 * noise_env + pop * 0.85 + ring) * env
+    return np.tanh(raw * 2.2)
+
+
 def synthesize_footstep() -> np.ndarray:
     """Soft, gentle, realistic boot scuff/tap on stone (no harsh kick-drum boom)."""
     duration = 0.08
@@ -237,6 +254,13 @@ class SoundManager:
         self.sounds["pump"] = pygame.mixer.Sound(pump_file)
         self.sounds["pump"].set_volume(0.75)
 
+        # 2b. Classic pistol shot
+        pistol_file = self._find_audio_file("pistol_shot")
+        if not pistol_file:
+            pistol_file = save_wav("pistol_shot.wav", synthesize_pistol_shot())
+        self.sounds["pistol_shot"] = pygame.mixer.Sound(pistol_file)
+        self.sounds["pistol_shot"].set_volume(0.65)
+
         # 3. Soft muffled footstep (calm, low volume)
         step_file = self._find_audio_file("footstep")
         if not step_file:
@@ -301,6 +325,10 @@ class SoundManager:
     def play_shot(self):
         if self.enabled and "shot" in self.sounds:
             self.sounds["shot"].play()
+
+    def play_pistol_shot(self):
+        if self.enabled and "pistol_shot" in self.sounds:
+            self.sounds["pistol_shot"].play()
 
     def play_pump(self):
         if self.enabled and not self.has_integrated_pump and "pump" in self.sounds:
