@@ -20,6 +20,7 @@ from src.combat.particles import ParticleManager
 from src.combat.projectile import ProjectileManager
 from src.graphics.renderer import Renderer
 from src.combat.weapon import Weapon
+from src.core.editor import LevelEditor
 
 
 class Game:
@@ -33,9 +34,11 @@ class Game:
         self.mouse_grabbed = True
         self.is_fullscreen = False
         self.pressed_scancodes = set()
+        self.mode = "game"  # "game" or "editor"
 
         self.grab_mouse(True)
         self.new_game()
+        self.editor = LevelEditor(self)
 
     def toggle_fullscreen(self):
         """Toggle between windowed and fullscreen display with hardware scaling."""
@@ -61,6 +64,30 @@ class Game:
         self.mouse_grabbed = grab
         pygame.mouse.set_visible(not grab)
         pygame.event.set_grab(grab)
+
+    def open_editor(self):
+        """Switch to level editor mode, release mouse capture, and sync map data."""
+        self.mode = "editor"
+        self.grab_mouse(False)
+        self.editor.sync_from_map()
+
+    def close_editor(self, apply: bool = True):
+        """Switch back to 3D game mode and capture mouse."""
+        if apply:
+            self.apply_editor_map()
+        self.mode = "game"
+        self.grab_mouse(True)
+
+    def apply_editor_map(self):
+        """Rebuild runtime game state from current map data after editor changes."""
+        self.map._populate_world_map()
+        self.player.reset_to_spawn()
+        self.enemy_manager.setup_enemies()
+        self.projectile_manager.projectiles.clear()
+        self.particle_manager.particles.clear()
+        self.sprite_manager.setup_map_props()
+        self.victory = False
+        self.start_ticks = pygame.time.get_ticks()
 
     def new_game(self):
         self.sound = SoundManager(self)
@@ -88,6 +115,13 @@ class Game:
                 self.sound.play_teleport_win()
 
     def update(self):
+        if self.mode == "editor":
+            self.delta_time = self.clock.tick(FPS)
+            self.editor.update()
+            fps = int(self.clock.get_fps())
+            pygame.display.set_caption(f"Not-a-Doom | LEVEL EDITOR | FPS: {fps}")
+            return
+
         self.delta_time = self.clock.tick(FPS)
         self.player.update()
         if self.mouse_grabbed and not self.victory:
@@ -105,12 +139,17 @@ class Game:
         elif not self.player.alive:
             status = "GAME OVER (Press R to respawn)"
         elif not self.mouse_grabbed:
-            status = "PAUSED (Click or press ESC to resume, Q to quit)"
+            status = "PAUSED (Click/ESC to resume, F2 for Editor, Q to quit)"
         else:
-            status = "PLAYING"
+            status = "PLAYING (Press F2 for Level Editor)"
         pygame.display.set_caption(f"Not-a-Doom | {hp_str} | {status} | FPS: {fps}")
 
     def draw(self):
+        if self.mode == "editor":
+            self.editor.draw(self.screen)
+            pygame.display.flip()
+            return
+
         self.renderer.draw()
         pygame.display.flip()
 
@@ -118,9 +157,23 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN:
+                return
+
+            if self.mode == "editor":
+                if event.type == pygame.KEYDOWN and (
+                    event.key == pygame.K_F11
+                    or (event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT))
+                ):
+                    self.toggle_fullscreen()
+                else:
+                    self.editor.handle_event(event)
+                continue
+
+            if event.type == pygame.KEYDOWN:
                 self.pressed_scancodes.add(event.scancode)
-                if (not self.player.alive or self.victory) and (
+                if event.key == pygame.K_F2:
+                    self.open_editor()
+                elif (not self.player.alive or self.victory) and (
                     event.key in (pygame.K_r, pygame.K_RETURN, pygame.K_SPACE)
                     or event.scancode == pygame.KSCAN_R
                 ):

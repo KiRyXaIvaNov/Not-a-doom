@@ -310,6 +310,8 @@ class SoundManager:
         if self.enabled and "step" in self.sounds:
             self.sounds["step"].play()
 
+    play_footstep = play_step
+
     def play_demon_pain(self):
         if self.enabled and "demon_pain" in self.sounds:
             self.sounds["demon_pain"].play()

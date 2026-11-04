@@ -506,14 +506,13 @@ class EnemyManager:
         self.setup_enemies()
 
     def setup_enemies(self):
-        """Spawn demons in labyrinth rooms."""
+        """Spawn demons according to map configuration."""
+        coords = getattr(self.game.map, "enemies", None)
+        if coords is None:
+            coords = [(7.5, 4.5), (9.5, 3.5), (13.5, 10.5)]
         self.enemies = [
-            # Near central courtyard junction
-            Enemy(self.game, (7.5, 4.5), name="cacodemon", scale=0.85, shift=0.08),
-            # Inside right tech hall
-            Enemy(self.game, (9.5, 3.5), name="cacodemon", scale=0.85, shift=0.08),
-            # Deep in pillar corridor
-            Enemy(self.game, (13.5, 10.5), name="cacodemon", scale=0.85, shift=0.08),
+            Enemy(self.game, (pos[0], pos[1]), name="cacodemon", scale=0.85, shift=0.08)
+            for pos in coords
         ]
 
     def update(self):
