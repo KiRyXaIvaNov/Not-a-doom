@@ -1,9 +1,9 @@
-from src.core.settings import ASSETS_SOUND_DIR, BASE_DIR
 """
 Sound system and audio manager for Not-a-Doom.
 Loads external sound files (MP3, WAV, OGG) from assets/sound/
 or falls back to procedural retro audio synthesis.
 """
+from src.core.settings import ASSETS_SOUND_DIR, BASE_DIR
 import os
 import wave
 import numpy as np

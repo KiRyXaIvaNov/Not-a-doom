@@ -204,9 +204,7 @@ class PortalObject:
         dy = self.y - self.game.player.y
         theta = math.atan2(dy, dx)
 
-        delta = theta - self.game.player.angle
-        if (dx > 0 and self.game.player.angle > math.pi) or (dx < 0 and dy < 0):
-            delta += math.tau
+        delta = (theta - self.game.player.angle + math.pi) % math.tau - math.pi
 
         delta_rays = delta / DELTA_ANGLE
         self.screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)
@@ -273,9 +271,7 @@ class SpriteObject:
         dy = self.y - self.game.player.y
         self.theta = math.atan2(dy, dx)
 
-        delta = self.theta - self.game.player.angle
-        if (dx > 0 and self.game.player.angle > math.pi) or (dx < 0 and dy < 0):
-            delta += math.tau
+        delta = (self.theta - self.game.player.angle + math.pi) % math.tau - math.pi
 
         delta_rays = delta / DELTA_ANGLE
         self.screen_x = (NUM_RAYS // 2 + delta_rays) * SCALE
@@ -405,6 +401,7 @@ class SpriteManager:
     def __init__(self, game):
         self.game = game
         self.sprite_list = []
+        self.scaled_cache = {}
         self.setup_map_props()
 
     def update(self):
@@ -475,7 +472,13 @@ class SpriteManager:
             if end_col <= start_col:
                 continue
 
-            scaled_sprite = pygame.transform.scale(shaded_image, (proj_w, proj_h))
+            cache_key = (id(shaded_image), proj_w, proj_h)
+            scaled_sprite = self.scaled_cache.get(cache_key)
+            if scaled_sprite is None:
+                scaled_sprite = pygame.transform.scale(shaded_image, (proj_w, proj_h))
+                if len(self.scaled_cache) > 256:
+                    self.scaled_cache.clear()
+                self.scaled_cache[cache_key] = scaled_sprite
 
             span_start = None
             step = int(SCALE)

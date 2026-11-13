@@ -90,10 +90,12 @@ class Game:
         self.start_ticks = pygame.time.get_ticks()
 
     def new_game(self):
-        self.sound = SoundManager(self)
+        if not hasattr(self, 'sound'):
+            self.sound = SoundManager(self)
+        if not hasattr(self, 'textures'):
+            self.textures = TextureManager()
         self.map = Map()
         self.player = Player(self)
-        self.textures = TextureManager()
         self.raycasting = RayCasting(self)
         self.enemy_manager = EnemyManager(self)
         self.projectile_manager = ProjectileManager(self)
@@ -131,13 +133,13 @@ class Game:
 
     def update(self):
         if self.mode == "editor":
-            self.delta_time = self.clock.tick(FPS)
+            self.delta_time = min(self.clock.tick(FPS), 50)
             self.editor.update()
             fps = int(self.clock.get_fps())
             pygame.display.set_caption(f"Not-a-Doom | LEVEL EDITOR | FPS: {fps}")
             return
 
-        self.delta_time = self.clock.tick(FPS)
+        self.delta_time = min(self.clock.tick(FPS), 50)
         self.player.update()
         if self.mouse_grabbed and not self.victory:
             self.particle_manager.update()

@@ -133,9 +133,7 @@ class Fireball:
         dy = self.y - player.y
         theta = math.atan2(dy, dx)
 
-        delta = theta - player.angle
-        if (dx > 0 and player.angle > math.pi) or (dx < 0 and dy < 0):
-            delta += math.tau
+        delta = (theta - player.angle + math.pi) % math.tau - math.pi
 
         delta_rays = delta / DELTA_ANGLE
         screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)

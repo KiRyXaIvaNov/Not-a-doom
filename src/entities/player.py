@@ -123,12 +123,22 @@ class Player:
     def is_colliding(self, x: float, y: float) -> bool:
         """Check if bounding box around position collides with any solid walls."""
         margin = self.collision_margin
-        return (
+        if (
             self.game.map.is_wall(int(x - margin), int(y - margin))
             or self.game.map.is_wall(int(x + margin), int(y - margin))
             or self.game.map.is_wall(int(x - margin), int(y + margin))
             or self.game.map.is_wall(int(x + margin), int(y + margin))
-        )
+        ):
+            return True
+
+        if hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                is_solid_barrel = getattr(sp, 'is_exploding', False) or (hasattr(sp, 'is_exploded') and not sp.is_exploded)
+                is_pillar = getattr(sp, 'name', '') == 'pillar'
+                if (is_pillar or is_solid_barrel) and math.hypot(x - sp.x, y - sp.y) < (margin + 0.3):
+                    return True
+
+        return False
 
     def check_wall_collision(self, dx: float, dy: float):
         """Move player with collision box and allow sliding along walls."""

@@ -35,6 +35,10 @@ class Renderer:
 
         self.doom_face = DoomFace(game)
         self.hud_bg = self._create_hud_background()
+        self.damage_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.damage_flash_surf.fill((220, 20, 20))
+        self.heal_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.heal_flash_surf.fill((40, 220, 90))
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
@@ -155,17 +159,15 @@ class Renderer:
         """Draw full-screen red damage flash with smooth alpha fade."""
         if hasattr(self.game, 'player') and self.game.player.damage_alpha > 0.0:
             alpha = int(min(255, self.game.player.damage_alpha))
-            flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            flash_surf.fill((220, 20, 20, alpha))
-            self.screen.blit(flash_surf, (0, 0))
+            self.damage_flash_surf.set_alpha(alpha)
+            self.screen.blit(self.damage_flash_surf, (0, 0))
 
     def draw_heal_flash(self):
         """Draw soothing green/gold screen tint on health pickup."""
         if hasattr(self.game, 'player') and getattr(self.game.player, 'heal_alpha', 0.0) > 0.0:
             alpha = int(min(255, self.game.player.heal_alpha))
-            flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            flash_surf.fill((40, 220, 90, alpha))
-            self.screen.blit(flash_surf, (0, 0))
+            self.heal_flash_surf.set_alpha(alpha)
+            self.screen.blit(self.heal_flash_surf, (0, 0))
 
     def _create_hud_background(self) -> pygame.Surface:
         """Pre-bake metallic stone status bar base texture and beveled inset frames."""
