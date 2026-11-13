@@ -92,7 +92,17 @@ def test_audit_fixes():
     assert player.is_colliding(1.5, 1.5) is False, "Player should not collide in open space"
     print("Prop collision test PASSED!")
 
-    print(">>> 6. Running 30 game loop frames to verify delta_time cap and performance...")
+    print(">>> 6. Testing Damage Flash and Heal Flash rendering...")
+    player.take_damage(20)
+    assert player.damage_alpha > 0.0
+    game.renderer.draw_damage_flash()
+    player.heal(15)
+    assert player.heal_alpha > 0.0
+    game.renderer.draw_heal_flash()
+    game.renderer.draw()
+    print("Flash rendering tests PASSED!")
+
+    print(">>> 7. Running 30 game loop frames to verify delta_time cap and performance...")
     for _ in range(30):
         game.update()
         game.draw()

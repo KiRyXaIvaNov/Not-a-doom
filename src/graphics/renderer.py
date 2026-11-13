@@ -35,6 +35,10 @@ class Renderer:
 
         self.doom_face = DoomFace(game)
         self.hud_bg = self._create_hud_background()
+        self.damage_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.damage_flash_surf.fill((220, 20, 20))
+        self.heal_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.heal_flash_surf.fill((40, 220, 90))
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
