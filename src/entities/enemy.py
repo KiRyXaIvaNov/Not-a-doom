@@ -358,6 +358,13 @@ class Enemy:
                 if self.game.map.is_wall(int(self.x + vx + ox), int(self.y + oy)):
                     can_move_x = False
                     break
+        if can_move_x and hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                is_solid_barrel = getattr(sp, 'is_exploding', False) or (hasattr(sp, 'is_exploded') and not sp.is_exploded)
+                is_pillar = getattr(sp, 'name', '') == 'pillar'
+                if (is_pillar or is_solid_barrel) and math.hypot(self.x + vx - sp.x, self.y - sp.y) < (r + 0.3):
+                    can_move_x = False
+                    break
         if can_move_x:
             self.x += vx
 
@@ -366,6 +373,13 @@ class Enemy:
         for ox in (-r, r):
             for oy in (-r, r):
                 if self.game.map.is_wall(int(self.x + ox), int(self.y + vy + oy)):
+                    can_move_y = False
+                    break
+        if can_move_y and hasattr(self.game, 'sprite_manager'):
+            for sp in self.game.sprite_manager.sprite_list:
+                is_solid_barrel = getattr(sp, 'is_exploding', False) or (hasattr(sp, 'is_exploded') and not sp.is_exploded)
+                is_pillar = getattr(sp, 'name', '') == 'pillar'
+                if (is_pillar or is_solid_barrel) and math.hypot(self.x - sp.x, self.y + vy - sp.y) < (r + 0.3):
                     can_move_y = False
                     break
         if can_move_y:
@@ -411,7 +425,7 @@ class Enemy:
             return
 
         # AI tracking & movement
-        self.check_line_of_sight()
+        has_los = self.check_line_of_sight()
         self.move_towards_player(dt)
 
         # Melee bite attack when close to player
@@ -431,7 +445,7 @@ class Enemy:
             if self.fireball_cooldown > 0:
                 self.fireball_cooldown -= dt
 
-            if 2.2 <= dist <= 11.0 and self.fireball_cooldown <= 0:
+            if 2.2 <= dist <= 11.0 and self.fireball_cooldown <= 0 and has_los:
                 if hasattr(self.game, 'projectile_manager'):
                     self.game.projectile_manager.shoot_fireball(
                         (self.x, self.y, 0.5),
@@ -462,9 +476,7 @@ class Enemy:
         dy = self.y - self.game.player.y
         theta = math.atan2(dy, dx)
 
-        delta = theta - self.game.player.angle
-        if (dx > 0 and self.game.player.angle > math.pi) or (dx < 0 and dy < 0):
-            delta += math.tau
+        delta = (theta - self.game.player.angle + math.pi) % math.tau - math.pi
 
         delta_rays = delta / DELTA_ANGLE
         self.screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)
@@ -521,7 +533,7 @@ class EnemyManager:
         for enemy in self.enemies:
             enemy.update()
 
-    def alert_all_by_noise(self, source_pos: tuple[float, float], radius: float = 18.0):
+    def alert_all_by_noise(self, source_pos: tuple[float, float], radius: float = 8.5):
         """Alert all alive idle demons within acoustic hearing range when player shoots."""
         for enemy in self.enemies:
             if enemy.alive and enemy.state == "idle":

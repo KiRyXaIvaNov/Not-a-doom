@@ -207,8 +207,8 @@ class LevelEditor:
         """Send edited grid and entity positions to the game engine."""
         data = {
             "grid": [row[:] for row in self.grid],
-            "player_spawn": list(self.player_spawn),
-            "portal": list(self.portal),
+            "player_spawn": list(self.player_spawn) if self.player_spawn else [1.5, 1.5],
+            "portal": list(self.portal) if self.portal else [14.5, 14.5],
             "enemies": [list(e) for e in self.enemies],
             "barrels": [list(b) for b in self.barrels],
             "medkits": [list(m) for m in self.medkits],
@@ -220,6 +220,12 @@ class LevelEditor:
 
     def save_map(self, path: str = None) -> bool:
         """Serialize current editor data to JSON file."""
+        if not self.player_spawn:
+            self.set_status("CANNOT SAVE: Player spawn is missing! Press 'P' to place one.", (255, 50, 50), 4000)
+            return False
+        if not self.portal:
+            self.set_status("CANNOT SAVE: Exit portal is missing! Press 'E' to place exit.", (255, 50, 50), 4000)
+            return False
         self.apply_to_game()
         filepath = path or DEFAULT_MAP_PATH
         success = self.game.map.save_to_file(filepath)
@@ -443,7 +449,8 @@ class LevelEditor:
                 self.set_status("CANNOT PLAY: Player spawn is missing! Press 'P' to place one.", (255, 50, 50), 4000)
                 return
             if not self.portal:
-                self.set_status("WARNING: Exit portal is missing! Press 'E' to place exit.", (255, 160, 40), 3000)
+                self.set_status("CANNOT PLAY: Exit portal is missing! Press 'E' to place exit.", (255, 50, 50), 4000)
+                return
             self.apply_to_game()
             self.game.close_editor(apply=True)
         elif action == "save":
