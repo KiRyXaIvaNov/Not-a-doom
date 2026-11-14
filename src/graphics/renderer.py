@@ -39,6 +39,13 @@ class Renderer:
         self.damage_flash_surf.fill((220, 20, 20))
         self.heal_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         self.heal_flash_surf.fill((40, 220, 90))
+        self.quality_toast_text = ""
+        self.quality_toast_timer = 0.0
+
+    def show_quality_toast(self, text: str):
+        """Display an on-screen toast notification when switching graphics quality."""
+        self.quality_toast_text = text
+        self.quality_toast_timer = 1800.0  # Show for 1.8 seconds
 
     def draw_background(self):
         """Draw panoramic scrolling sky and dark retro floor."""
@@ -54,32 +61,34 @@ class Renderer:
         )
 
     def render_walls(self):
-        """Render textured 3D wall slices with hardware clipping and instant O(1) pre-shaded texture lookup."""
+        """Render textured 3D wall slices with sub-pixel stability and instant O(1) pre-shaded texture lookup."""
+        scale = getattr(self.game, 'scale', SCALE)
+        get_column = getattr(self.textures, 'get_column_slice', None)
+
         for depth, proj_height, texture_id, wall_x, ray, side in self.game.raycasting.ray_casting_result:
             depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
             side_factor = 0.75 if side == 1 else 1.0
             brightness = max(0.1, min(1.0, depth_factor * side_factor))
 
-            texture = self.textures.get_shaded_texture(texture_id, brightness)
-            col_x = int(wall_x * (TEXTURE_SIZE - 1))
+            col_x = int(wall_x * TEXTURE_SIZE) % TEXTURE_SIZE
 
-            if proj_height < HEIGHT:
-                slice_height = int(proj_height)
-                screen_y = HALF_HEIGHT - slice_height // 2
-                wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
-                wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
+            # Zero-allocation O(1) column slice lookup from pre-sliced lightmaps
+            if get_column:
+                wall_slice = get_column(texture_id, brightness, col_x)
             else:
-                slice_height = HEIGHT
-                screen_y = 0
-                texture_height_factor = HEIGHT / proj_height
-                sub_y = int((1.0 - texture_height_factor) * 0.5 * TEXTURE_SIZE)
-                sub_h = int(texture_height_factor * TEXTURE_SIZE)
-                sub_y = max(0, min(TEXTURE_SIZE - 1, sub_y))
-                sub_h = max(1, min(TEXTURE_SIZE - sub_y, sub_h))
-                wall_slice = texture.subsurface(col_x, sub_y, 1, sub_h)
-                wall_column = pygame.transform.scale(wall_slice, (SCALE, HEIGHT))
+                texture = self.textures.get_shaded_texture(texture_id, brightness)
+                wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
 
-            screen_x = ray * SCALE
+            # Direct full-column scaling: eliminates integer subsurface crop jitter (sawtooth wavy artifact).
+            # Enforce even slice height to lock center to HALF_HEIGHT and remove 0.5px odd/even parity oscillation.
+            # Safe upper bound prevents out-of-memory allocations during collision edge cases.
+            slice_height = max(2, min(int(proj_height), 5000))
+            if slice_height % 2 != 0:
+                slice_height += 1
+            screen_y = HALF_HEIGHT - slice_height // 2
+
+            wall_column = pygame.transform.scale(wall_slice, (scale, slice_height))
+            screen_x = ray * scale
             self.screen.blit(wall_column, (screen_x, screen_y))
 
     def draw_crosshair(self):
@@ -352,16 +361,36 @@ class Renderer:
         title = self.font_large.render("PAUSED", True, (255, 215, 0))
         sub1 = self.font_small.render("Press ESC or Click to Resume", True, (240, 240, 240))
         sub_wpn = self.font_small.render("1: Pistol | 2: Shotgun | Q / Wheel: Switch Weapon", True, (255, 215, 80))
+        sub_gfx = self.font_small.render("Press F5 / F6 for Graphics Mode (HD / Balanced / Retro)", True, (100, 240, 255))
         sub2 = self.font_small.render("Press F2 for Level Editor", True, (255, 200, 50))
         sub3 = self.font_small.render("Press F11 for Fullscreen", True, (0, 220, 255))
         sub4 = self.font_small.render("Press Q to Quit", True, (200, 200, 200))
 
-        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 80)))
-        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 25)))
-        self.screen.blit(sub_wpn, sub_wpn.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 5)))
-        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 35)))
-        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 65)))
-        self.screen.blit(sub4, sub4.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 95)))
+        self.screen.blit(title, title.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 95)))
+        self.screen.blit(sub1, sub1.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 40)))
+        self.screen.blit(sub_wpn, sub_wpn.get_rect(center=(HALF_WIDTH, HALF_HEIGHT - 10)))
+        self.screen.blit(sub_gfx, sub_gfx.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 20)))
+        self.screen.blit(sub2, sub2.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 50)))
+        self.screen.blit(sub3, sub3.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 80)))
+        self.screen.blit(sub4, sub4.get_rect(center=(HALF_WIDTH, HALF_HEIGHT + 110)))
+
+    def draw_quality_toast(self):
+        """Render floating retro notification when graphics quality mode is switched."""
+        if not self.quality_toast_text or self.quality_toast_timer <= 0:
+            return
+        alpha = min(255, int(self.quality_toast_timer / 300.0 * 255))
+        txt = self.font_small.render(self.quality_toast_text, True, (255, 235, 80))
+        txt.set_alpha(alpha)
+        pad_x, pad_y = 18, 9
+        w, h = txt.get_width() + pad_x * 2, txt.get_height() + pad_y * 2
+        bg = pygame.Surface((w, h), pygame.SRCALPHA)
+        bg.fill((12, 16, 22, int(alpha * 0.90)))
+        pygame.draw.rect(bg, (255, 215, 50, alpha), (0, 0, w, h), 2, border_radius=4)
+
+        rx = HALF_WIDTH - w // 2
+        ry = 80
+        self.screen.blit(bg, (rx, ry))
+        self.screen.blit(txt, (rx + pad_x, ry + pad_y))
 
     def draw(self):
         self.draw_background()
@@ -385,6 +414,9 @@ class Renderer:
         self.draw_heal_flash()
         self.draw_hud()
         self.draw_minimap()
+
+        if hasattr(self, 'quality_toast_timer') and self.quality_toast_timer > 0:
+            self.draw_quality_toast()
 
         if hasattr(self.game, 'victory') and self.game.victory:
             self.draw_victory_screen()

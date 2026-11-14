@@ -7,8 +7,9 @@ import sys
 # Ensure project root is in sys.path regardless of how script is executed
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import math
 import pygame
-from src.core.settings import RES, FPS
+from src.core.settings import RES, FPS, WIDTH, FOV, SCALE, NUM_RAYS, DELTA_ANGLE, QUALITY_NAMES
 from src.audio.sound import SoundManager
 from src.core.map import Map
 from src.entities.player import Player
@@ -36,6 +37,11 @@ class Game:
         self.pressed_scancodes = set()
         self.mode = "game"  # "game" or "editor"
 
+        # Quality & raycasting resolution presets
+        self.scale = SCALE
+        self.num_rays = NUM_RAYS
+        self.delta_angle = DELTA_ANGLE
+
         self.grab_mouse(True)
         self.new_game()
         self.editor = LevelEditor(self)
@@ -58,6 +64,28 @@ class Game:
                 self.is_fullscreen = False
         if hasattr(self, "renderer"):
             self.renderer.screen = self.screen
+
+    def cycle_quality(self, step: int = 1):
+        """Cycle graphics quality scale modes between HD (SCALE=2), Balanced (3), and Retro Performance (4)."""
+        scales = [2, 3, 4]
+        try:
+            curr_idx = scales.index(self.scale)
+        except ValueError:
+            curr_idx = 0
+        new_idx = (curr_idx + step) % len(scales)
+        self.set_quality(scales[new_idx])
+
+    def set_quality(self, scale: int):
+        """Apply new raycasting scale mode and reconfigure raycaster and depth buffers."""
+        self.scale = max(2, min(4, scale))
+        self.num_rays = math.ceil(WIDTH / self.scale)
+        self.delta_angle = FOV / self.num_rays
+        if hasattr(self, "raycasting"):
+            self.raycasting.set_quality(self.scale, self.num_rays, self.delta_angle)
+
+        mode_name = QUALITY_NAMES.get(self.scale, f"SCALE {self.scale}")
+        if hasattr(self, "renderer"):
+            self.renderer.show_quality_toast(f"GRAPHICS: {mode_name}")
 
     def grab_mouse(self, grab: bool):
         """Toggle mouse capture and visibility."""
@@ -141,6 +169,9 @@ class Game:
 
         self.delta_time = min(self.clock.tick(FPS), 50)
         self.player.update()
+        if hasattr(self, "renderer") and hasattr(self.renderer, "quality_toast_timer") and self.renderer.quality_toast_timer > 0:
+            self.renderer.quality_toast_timer = max(0.0, self.renderer.quality_toast_timer - self.delta_time)
+
         if self.mouse_grabbed and not self.victory:
             self.particle_manager.update()
             self.projectile_manager.update()
@@ -199,6 +230,10 @@ class Game:
                     event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT)
                 ):
                     self.toggle_fullscreen()
+                elif event.key == pygame.K_F5:
+                    self.cycle_quality(1)
+                elif event.key == pygame.K_F6:
+                    self.set_quality(4 if self.scale == 2 else 2)
                 elif event.key == pygame.K_ESCAPE:
                     self.grab_mouse(not self.mouse_grabbed)
                 elif not self.mouse_grabbed and event.key == pygame.K_q:

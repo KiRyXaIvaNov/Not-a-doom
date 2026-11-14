@@ -130,6 +130,9 @@ class ParticleManager:
         """Render all visible particles respecting depth buffer occlusion."""
         depth_buffer = self.game.raycasting.depth_buffer
         player = self.game.player
+        delta_angle = getattr(self.game, 'delta_angle', DELTA_ANGLE)
+        num_rays = getattr(self.game, 'num_rays', NUM_RAYS)
+        scale = getattr(self.game, 'scale', SCALE)
 
         for p in self.particles:
             dx = p.x - player.x
@@ -145,11 +148,11 @@ class ParticleManager:
             if norm_dist <= 0.2:
                 continue
 
-            delta_rays = delta / DELTA_ANGLE
-            ray_idx = int(NUM_RAYS // 2 + delta_rays)
+            delta_rays = delta / delta_angle
+            ray_idx = int(num_rays // 2 + delta_rays)
 
-            if 0 <= ray_idx < NUM_RAYS and norm_dist < depth_buffer[ray_idx]:
-                screen_x = int(ray_idx * SCALE)
+            if 0 <= ray_idx < num_rays and norm_dist < depth_buffer[ray_idx]:
+                screen_x = int(ray_idx * scale)
                 # Projected vertical offset based on particle 3D height z
                 screen_y = int(HALF_HEIGHT + SCREEN_DIST * (0.5 - p.z) / norm_dist)
 

@@ -180,9 +180,11 @@ class TextureManager:
         return surf
 
     def _bake_lightmaps(self):
-        """Pre-shade textures into 16 discrete light levels at startup (DOOM colormap technique)."""
+        """Pre-shade textures into 16 discrete light levels and pre-slice 256 vertical 1px columns."""
+        self.pre_sliced_columns = {}
         for tex_id, surface in self.raw_textures.items():
             self.shaded_textures[tex_id] = []
+            self.pre_sliced_columns[tex_id] = []
             for level in range(NUM_LIGHT_LEVELS):
                 ratio = level / (NUM_LIGHT_LEVELS - 1)
                 brightness = max(0.12, ratio)
@@ -190,9 +192,27 @@ class TextureManager:
                 shaded = surface.copy()
                 shaded.fill((val, val, val), special_flags=pygame.BLEND_MULT)
                 self.shaded_textures[tex_id].append(shaded)
+                # Pre-slice 256 vertical 1px columns for zero-allocation O(1) render lookup
+                cols = tuple(shaded.subsurface((x, 0, 1, TEXTURE_SIZE)) for x in range(TEXTURE_SIZE))
+                self.pre_sliced_columns[tex_id].append(cols)
 
     def get_texture(self, texture_id: int) -> pygame.Surface:
         return self.raw_textures.get(texture_id, self.raw_textures[1])
+
+    def set_texture(self, tex_id: int, surface: pygame.Surface):
+        """Set or update a texture dynamically and rebake its lightmaps and column slices."""
+        self.raw_textures[tex_id] = surface
+        self.shaded_textures[tex_id] = []
+        self.pre_sliced_columns[tex_id] = []
+        for level in range(NUM_LIGHT_LEVELS):
+            ratio = level / (NUM_LIGHT_LEVELS - 1)
+            brightness = max(0.12, ratio)
+            val = int(255 * brightness)
+            shaded = surface.copy()
+            shaded.fill((val, val, val), special_flags=pygame.BLEND_MULT)
+            self.shaded_textures[tex_id].append(shaded)
+            cols = tuple(shaded.subsurface((x, 0, 1, TEXTURE_SIZE)) for x in range(TEXTURE_SIZE))
+            self.pre_sliced_columns[tex_id].append(cols)
 
     def get_shaded_texture(self, texture_id: int, brightness: float) -> pygame.Surface:
         """Instant O(1) table lookup of pre-shaded texture level."""
@@ -200,3 +220,10 @@ class TextureManager:
         idx = int(brightness * (NUM_LIGHT_LEVELS - 1))
         idx = max(0, min(NUM_LIGHT_LEVELS - 1, idx))
         return levels[idx]
+
+    def get_column_slice(self, texture_id: int, brightness: float, col_x: int) -> pygame.Surface:
+        """Instant O(1) lookup of pre-sliced, pre-shaded 1px texture column (zero allocation)."""
+        levels = self.pre_sliced_columns.get(texture_id, self.pre_sliced_columns[1])
+        idx = int(brightness * (NUM_LIGHT_LEVELS - 1))
+        idx = max(0, min(NUM_LIGHT_LEVELS - 1, idx))
+        return levels[idx][col_x]

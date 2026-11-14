@@ -39,10 +39,20 @@ MOUSE_BORDER_RIGHT = WIDTH - MOUSE_BORDER_LEFT
 # Camera & FOV
 FOV = math.pi / 3       # 60 degrees field of view
 HALF_FOV = FOV / 2
-NUM_RAYS = WIDTH // 2   # Cast 1 ray per 2 pixels for performance balance
+DEFAULT_SCALE = 2
+SCALE = DEFAULT_SCALE
+NUM_RAYS = WIDTH // SCALE   # Cast 1 ray per 2 pixels by default for crisp HD
 HALF_NUM_RAYS = NUM_RAYS // 2
 DELTA_ANGLE = FOV / NUM_RAYS
 MAX_DEPTH = 30          # Maximum view distance in grid units
+
+# Graphics Quality Presets
+QUALITY_MODES = [2, 3, 4]
+QUALITY_NAMES = {
+    2: "HD (640 rays)",
+    3: "Balanced (427 rays)",
+    4: "Retro Performance (320 rays)",
+}
 
 # Screen Projection
 SCREEN_DIST = HALF_WIDTH / math.tan(HALF_FOV)
