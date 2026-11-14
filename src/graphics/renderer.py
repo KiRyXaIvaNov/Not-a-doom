@@ -54,30 +54,27 @@ class Renderer:
         )
 
     def render_walls(self):
-        """Render textured 3D wall slices with hardware clipping and instant O(1) pre-shaded texture lookup."""
+        """Render textured 3D wall slices with sub-pixel stability and instant O(1) pre-shaded texture lookup."""
         for depth, proj_height, texture_id, wall_x, ray, side in self.game.raycasting.ray_casting_result:
             depth_factor = 1.0 / (1.0 + depth * depth * 0.04)
             side_factor = 0.75 if side == 1 else 1.0
             brightness = max(0.1, min(1.0, depth_factor * side_factor))
 
             texture = self.textures.get_shaded_texture(texture_id, brightness)
-            col_x = int(wall_x * (TEXTURE_SIZE - 1))
 
-            if proj_height < HEIGHT:
-                slice_height = int(proj_height)
-                screen_y = HALF_HEIGHT - slice_height // 2
-                wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
-                wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
-            else:
-                slice_height = HEIGHT
-                screen_y = 0
-                texture_height_factor = HEIGHT / proj_height
-                sub_y = int((1.0 - texture_height_factor) * 0.5 * TEXTURE_SIZE)
-                sub_h = int(texture_height_factor * TEXTURE_SIZE)
-                sub_y = max(0, min(TEXTURE_SIZE - 1, sub_y))
-                sub_h = max(1, min(TEXTURE_SIZE - sub_y, sub_h))
-                wall_slice = texture.subsurface(col_x, sub_y, 1, sub_h)
-                wall_column = pygame.transform.scale(wall_slice, (SCALE, HEIGHT))
+            # Uniform texture column mapping across [0..TEXTURE_SIZE)
+            col_x = int(wall_x * TEXTURE_SIZE) % TEXTURE_SIZE
+
+            # Direct full-column scaling: eliminates integer subsurface crop jitter (sawtooth wavy artifact).
+            # Enforce even slice height to lock center to HALF_HEIGHT and remove 0.5px odd/even parity oscillation.
+            # Safe upper bound prevents out-of-memory allocations during collision edge cases.
+            slice_height = max(2, min(int(proj_height), 5000))
+            if slice_height % 2 != 0:
+                slice_height += 1
+            screen_y = HALF_HEIGHT - slice_height // 2
+
+            wall_slice = texture.subsurface(col_x, 0, 1, TEXTURE_SIZE)
+            wall_column = pygame.transform.scale(wall_slice, (SCALE, slice_height))
 
             screen_x = ray * SCALE
             self.screen.blit(wall_column, (screen_x, screen_y))
