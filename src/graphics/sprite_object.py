@@ -206,8 +206,11 @@ class PortalObject:
 
         delta = (theta - self.game.player.angle + math.pi) % math.tau - math.pi
 
-        delta_rays = delta / DELTA_ANGLE
-        self.screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)
+        delta_angle = getattr(self.game, 'delta_angle', DELTA_ANGLE)
+        num_rays = getattr(self.game, 'num_rays', NUM_RAYS)
+        scale = getattr(self.game, 'scale', SCALE)
+        delta_rays = delta / delta_angle
+        self.screen_x = int((num_rays // 2 + delta_rays) * scale)
 
         self.dist = math.hypot(dx, dy)
         norm_dist = self.dist * math.cos(delta)
@@ -273,8 +276,11 @@ class SpriteObject:
 
         delta = (self.theta - self.game.player.angle + math.pi) % math.tau - math.pi
 
-        delta_rays = delta / DELTA_ANGLE
-        self.screen_x = (NUM_RAYS // 2 + delta_rays) * SCALE
+        delta_angle = getattr(self.game, 'delta_angle', DELTA_ANGLE)
+        num_rays = getattr(self.game, 'num_rays', NUM_RAYS)
+        scale = getattr(self.game, 'scale', SCALE)
+        delta_rays = delta / delta_angle
+        self.screen_x = int((num_rays // 2 + delta_rays) * scale)
 
         self.dist = math.hypot(dx, dy)
         norm_dist = self.dist * math.cos(delta)
@@ -481,13 +487,15 @@ class SpriteManager:
                 self.scaled_cache[cache_key] = scaled_sprite
 
             span_start = None
-            step = int(SCALE)
+            scale = getattr(self.game, 'scale', SCALE)
+            num_rays = getattr(self.game, 'num_rays', NUM_RAYS)
+            step = int(scale)
 
             for col in range(start_col, end_col, step):
                 screen_x = pos_x + col
-                ray_idx = int(screen_x // SCALE)
+                ray_idx = int(screen_x // scale)
 
-                visible = (0 <= ray_idx < NUM_RAYS and norm_dist < depth_buffer[ray_idx])
+                visible = (0 <= ray_idx < num_rays and norm_dist < depth_buffer[ray_idx])
 
                 if visible:
                     if span_start is None:

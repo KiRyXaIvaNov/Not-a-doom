@@ -135,8 +135,11 @@ class Fireball:
 
         delta = (theta - player.angle + math.pi) % math.tau - math.pi
 
-        delta_rays = delta / DELTA_ANGLE
-        screen_x = int((NUM_RAYS // 2 + delta_rays) * SCALE)
+        delta_angle = getattr(self.game, 'delta_angle', DELTA_ANGLE)
+        num_rays = getattr(self.game, 'num_rays', NUM_RAYS)
+        scale = getattr(self.game, 'scale', SCALE)
+        delta_rays = delta / delta_angle
+        screen_x = int((num_rays // 2 + delta_rays) * scale)
 
         dist = math.hypot(dx, dy)
         norm_dist = dist * math.cos(delta)

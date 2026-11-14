@@ -19,21 +19,37 @@ from src.core.settings import (
 class RayCasting:
     def __init__(self, game):
         self.game = game
+        self.scale = getattr(game, 'scale', SCALE)
+        self.num_rays = getattr(game, 'num_rays', NUM_RAYS)
+        self.delta_angle = getattr(game, 'delta_angle', DELTA_ANGLE)
         self.ray_casting_result = []
-        self.depth_buffer = [MAX_DEPTH] * NUM_RAYS
+        self.depth_buffer = [MAX_DEPTH] * self.num_rays
+
+    def set_quality(self, scale: int, num_rays: int, delta_angle: float):
+        """Dynamically reconfigure raycasting density for graphics quality scaling."""
+        self.scale = scale
+        self.num_rays = num_rays
+        self.delta_angle = delta_angle
+        self.depth_buffer = [MAX_DEPTH] * self.num_rays
 
     def update(self):
         self.ray_cast()
 
     def ray_cast(self):
-        """Execute DDA algorithm across the entire player Field of View."""
+        """Execute optimized DDA algorithm across the entire player Field of View."""
         self.ray_casting_result.clear()
 
         ox, oy = self.game.player.pos
         map_x, map_y = int(ox), int(oy)
-        ray_angle = self.game.player.angle - HALF_FOV + 0.0001
+        player_angle = self.game.player.angle
+        ray_angle = player_angle - HALF_FOV + 0.0001
+        num_rays = self.num_rays
+        delta_angle = self.delta_angle
+        world_map_get = self.game.map.world_map.get
+        depth_buffer = self.depth_buffer
+        results = self.ray_casting_result
 
-        for ray in range(NUM_RAYS):
+        for ray in range(num_rays):
             sin_a = math.sin(ray_angle)
             cos_a = math.cos(ray_angle)
 
@@ -74,7 +90,7 @@ class RayCasting:
                 if depth >= MAX_DEPTH:
                     break
 
-                wall_val = self.game.map.get_wall(cur_map_x, cur_map_y)
+                wall_val = world_map_get((cur_map_x, cur_map_y), 0)
                 if wall_val > 0:
                     texture_id = wall_val
                     break
@@ -89,24 +105,25 @@ class RayCasting:
             wall_x -= math.floor(wall_x)
 
             # Fish-eye correction relative to player heading
-            depth *= math.cos(self.game.player.angle - ray_angle)
+            depth *= math.cos(player_angle - ray_angle)
 
             # Record in depth buffer for sprite Z-testing
-            self.depth_buffer[ray] = depth
+            depth_buffer[ray] = depth
 
             # Projection calculations
             proj_height = SCREEN_DIST / (depth + 0.0001)
 
             # Store result for rendering
-            self.ray_casting_result.append(
+            results.append(
                 (depth, proj_height, texture_id, wall_x, ray, side)
             )
 
-            ray_angle += DELTA_ANGLE
+            ray_angle += delta_angle
 
     def cast_single_ray(self, ox: float, oy: float, ray_angle: float) -> tuple[float, float, float]:
         """Cast a single ray through the map and return (euclidean_dist, hit_x, hit_y)."""
         map_x, map_y = int(ox), int(oy)
+        world_map_get = self.game.map.world_map.get
         sin_a = math.sin(ray_angle)
         cos_a = math.cos(ray_angle)
 
@@ -146,7 +163,7 @@ class RayCasting:
             if depth >= MAX_DEPTH:
                 break
 
-            if self.game.map.get_wall(cur_map_x, cur_map_y) > 0:
+            if world_map_get((cur_map_x, cur_map_y), 0) > 0:
                 break
 
         if side == 0:

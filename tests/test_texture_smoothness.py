@@ -32,8 +32,8 @@ def test_texture_smoothness():
     test_tex = pygame.Surface((TEXTURE_SIZE, TEXTURE_SIZE))
     test_tex.fill((255, 255, 255))
     pygame.draw.line(test_tex, (0, 0, 0), (0, 128), (TEXTURE_SIZE - 1, 128))
-    for tex_id in list(game.textures.shaded_textures.keys()):
-        game.textures.shaded_textures[tex_id] = [test_tex] * 16
+    for tex_id in list(game.textures.raw_textures.keys()):
+        game.textures.set_texture(tex_id, test_tex)
 
     game.player.x = 2.4
     game.player.y = 2.5
